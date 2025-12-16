@@ -1,0 +1,56 @@
+class Config:
+    # ---LLM配置---
+    LLM_API_URL = 'https://api.openai.com/v1'
+    LLM_API_KEY = 'your_api_key_here'
+    LLM_MODEL = 'gpt-4o'
+    LLM_TEMPERATURE = 1.3
+    # LLM提示词内容, 从 prompt.txt 文件加载, 无需填写
+    LLM_PROMPT = ''
+
+    # ---智能体配置---
+    # 是否可以看到当前日期时间
+    AGENT_CAN_SEE_DATETIME = False
+
+    # ---智能体记忆配置---
+    # 是否自动清除上下文记忆
+    AMEM_AUTO_CLEAR_CONTEXT = True
+    # 上下文记忆的最大 token 数限制
+    AMEM_TOKEN_LIMIT = 64000
+    # 消耗 token 的期望值, 用于计算上下文记忆的保留长度
+    AMEM_EXPECTED_TOKEN_USAGE = 16000
+    # 是否启用缓存管理
+    AMEM_ENABLE_CACHE_MANAGEMENT = False
+    # 上下文记忆缓存过期时间, 单位秒
+    AMEM_CACHE_EXPIRY_SECONDS = 300
+    # 上下文记忆缓存价格比率, 用于计算是否清除上下文记忆
+    AMEM_CACHE_PRICE_RATIO = 0.5
+
+    # ---NapCat配置---
+    NAPCAT_HTTP_URL = 'http://localhost:3000'
+    NAPCAT_WS_URL = 'ws://localhost:3001'
+
+    # ---其他配置---
+    # 是否启用 QQ 指令功能
+    ENABLE_COMMANDS = True
+
+    # ---控制台日志配置---
+    # 是否过滤WebSocket心跳日志
+    FILTER_WS_HEARTBEAT = True
+
+    def __new__(cls):
+        # 禁止实例化
+        raise TypeError("Config类不可被实例化")
+
+
+from pathlib import Path
+CONFIG_DIR = Path(__file__).parent
+
+# 读取 LLM 提示词文件内容
+PROMPT_FILE = CONFIG_DIR / 'prompt.txt'
+try:
+    with open(PROMPT_FILE, 'r', encoding='utf-8') as f:
+        Config.LLM_PROMPT = f.read().strip()
+except FileNotFoundError:
+    print(f"⚠️ 不太妙: 提示词文件 prompt.txt 不存在")
+except Exception as e:
+    print(f"读取提示词文件失败: {e}")

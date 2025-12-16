@@ -1,0 +1,13 @@
+# Python
+.venv/
+__pycache__/
+# Config
+EchQ/config/config.py
+EchQ/config/prompt.txt
+
+# IDE
+.vscode/
+.VSCodeCounter/
+
+# Misc
+TODO.md
