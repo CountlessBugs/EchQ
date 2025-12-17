@@ -13,7 +13,6 @@ class LLMClient:
         model (str): 使用的LLM模型名称
         temperature (float): LLM生成文本的温度参数
     """
-    
     def __init__(self,
         api_url: str,
         api_key: str,
@@ -34,6 +33,8 @@ class LLMClient:
         self.temperature = temperature
         self._client = OpenAI(api_key=api_key, base_url=api_url)
     
+    # === 对话请求方法 ===
+
     def chat_completion_stream(
         self, 
         messages: List[Dict[str, str]], 
@@ -94,6 +95,8 @@ class Agent:
         self.memory: Optional[AgentMemory] = None
         self.can_see_datetime: bool = False
 
+    # === 初始化方法 ===
+
     def initialize(
         self, 
         memory: AgentMemory, 
@@ -125,28 +128,7 @@ class Agent:
             temperature=llm_temperature
         )
 
-    def _build_messages(self) -> List[Dict[str, str]]:
-        """构建发送给LLM的消息列表
-        
-        Returns:
-            消息列表
-        """
-        messages = []
-        # 添加系统提示词
-        if self.system_prompt:
-            messages.append({'role': 'system', 'content': self.system_prompt})
-        # 添加上下文记忆
-        messages.extend(self.memory.context_memory)
-        # 添加当前日期时间信息
-        if self.can_see_datetime:
-            from datetime import datetime
-            current_datetime = datetime.now().strftime('%Y-%m-%d %H:%M')
-            messages.append({
-                'role': 'system',
-                'content': f'Current datetime: {current_datetime}'
-            })
-        
-        return messages
+    # === 对话方法 ===
 
     def send_message(self, message: str) -> Iterator:
         """发送消息到LLM并获取流式响应
@@ -190,6 +172,8 @@ class Agent:
         if final_chunk and hasattr(final_chunk, 'usage') and final_chunk.usage:
             self.memory.current_token_usage = final_chunk.usage.total_tokens
 
+    # === 工具方法 ===
+
     @staticmethod
     def process_chunks(chunks: Iterator, delimiters: List[str] = ['\n']) -> Iterator[str]:
         """处理流式响应块,提取文本内容并按分割符分割
@@ -223,7 +207,7 @@ class Agent:
             yield buffer.strip()
         
     def get_context_summary(self) -> str:
-        """获取当前上下文记忆的总结
+        """调用LLM生成当前上下文记忆的总结
         
         Returns:
             上下文总结文本
@@ -255,6 +239,30 @@ class Agent:
         response = self.llm_client.chat_completion(messages, temperature=0.3)
         
         return response.choices[0].message.content
+
+    # === 私有方法 ===
+    def _build_messages(self) -> List[Dict[str, str]]:
+        """构建发送给LLM的消息列表
+        
+        Returns:
+            消息列表
+        """
+        messages = []
+        # 添加系统提示词
+        if self.system_prompt:
+            messages.append({'role': 'system', 'content': self.system_prompt})
+        # 添加上下文记忆
+        messages.extend(self.memory.context_memory)
+        # 添加当前日期时间信息
+        if self.can_see_datetime:
+            from datetime import datetime
+            current_datetime = datetime.now().strftime('%Y-%m-%d %H:%M')
+            messages.append({
+                'role': 'system',
+                'content': f'Current datetime: {current_datetime}'
+            })
+        
+        return messages
 
 
 agent = Agent()

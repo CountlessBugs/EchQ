@@ -1,4 +1,8 @@
 class Config:
+    # ---NapCat配置---
+    NAPCAT_HTTP_URL = 'http://localhost:3000'
+    NAPCAT_WS_URL = 'ws://localhost:3001'
+
     # ---LLM配置---
     LLM_API_URL = 'https://api.openai.com/v1'
     LLM_API_KEY = 'your_api_key_here'
@@ -12,8 +16,6 @@ class Config:
     AGENT_CAN_SEE_DATETIME = False
 
     # ---智能体记忆配置---
-    # 是否自动清除上下文记忆
-    AMEM_AUTO_CLEAR_CONTEXT = True
     # 上下文记忆的最大 token 数限制
     AMEM_TOKEN_LIMIT = 64000
     # 消耗 token 的期望值, 用于计算上下文记忆的保留长度
@@ -24,10 +26,6 @@ class Config:
     AMEM_CACHE_EXPIRY_SECONDS = 300
     # 上下文记忆缓存价格比率, 用于计算是否清除上下文记忆
     AMEM_CACHE_PRICE_RATIO = 0.5
-
-    # ---NapCat配置---
-    NAPCAT_HTTP_URL = 'http://localhost:3000'
-    NAPCAT_WS_URL = 'ws://localhost:3001'
 
     # ---其他配置---
     # 是否启用 QQ 指令功能

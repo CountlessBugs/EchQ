@@ -10,13 +10,12 @@ class NapcatClient:
     """Napcat HTTP客户端类
     
     用于通过HTTP API发送QQ消息 (文本, 语音等)
-    
-    Attributes:
-        base_url: Napcat HTTP API基础URL
     """
     def __init__(self) -> None:
         """初始化NapcatClient实例"""
-        self.base_url: str = ''
+        self._base_url: str = ''
+
+    # === 初始化方法 ===
 
     def initialize(self, base_url: str) -> None:
         """初始化Napcat客户端
@@ -24,7 +23,9 @@ class NapcatClient:
         Args:
             base_url: Napcat HTTP API的基础URL地址
         """
-        self.base_url = base_url
+        self._base_url = base_url
+
+    # === 发送消息方法 ===
 
     def send_message(
         self,
@@ -45,10 +46,10 @@ class NapcatClient:
         payload: dict[str, Any] = {'message': message}
 
         if is_group:
-            endpoint = f'{self.base_url}/send_group_msg'
+            endpoint = f'{self._base_url}/send_group_msg'
             payload['group_id'] = receiver
         else:
-            endpoint = f'{self.base_url}/send_private_msg'
+            endpoint = f'{self._base_url}/send_private_msg'
             payload['user_id'] = receiver
         
         response = requests.post(endpoint, json=payload)
@@ -113,19 +114,19 @@ class NapcatListener:
     用于监听Napcat WebSocket事件并处理接收到的消息
     
     Attributes:
-        ws: WebSocket应用实例
-        ws_url: Napcat监听器的WebSocket URL
-        on_message_callback: 接收到消息时的回调函数
-        filter_heartbeat: 是否过滤心跳消息
+        on_message_callback (Optional[Callable[[str], None]]): 接收到消息时的回调函数
+        filter_heartbeat (bool): 是否过滤心跳消息
     """
     def __init__(self) -> None:
         """初始化NapcatListener实例"""
-        self.ws: Optional[websocket.WebSocketApp] = None
-        self.ws_url: str = ''
+        self._ws: Optional[websocket.WebSocketApp] = None
+        self._ws_url: str = ''
         self.on_message_callback: Optional[Callable[[str], None]] = None
         self.filter_heartbeat: bool = True
         self._running: bool = False
         self._thread: Optional[threading.Thread] = None
+
+    # === 初始化方法 ===
 
     def initialize(
         self,
@@ -140,20 +141,22 @@ class NapcatListener:
             on_message_callback: 接收到消息时的回调函数, 默认为None
             filter_heartbeat: 是否过滤心跳消息, 默认为True
         """
-        self.ws_url = ws_url
+        self._ws_url = ws_url
         self.on_message_callback = on_message_callback
         self.filter_heartbeat = filter_heartbeat
         self._thread = None
         self._running = False
         
         # 初始化WebSocket应用
-        self.ws = websocket.WebSocketApp(
-            self.ws_url,
+        self._ws = websocket.WebSocketApp(
+            self._ws_url,
             on_open=self._on_open,
             on_message=self._on_message,
             on_error=self._on_error,
             on_close=self._on_close
         )
+
+    # === 监听器启动与停止方法 ===
 
     def start(self) -> None:
         """启动监听器"""
@@ -173,15 +176,17 @@ class NapcatListener:
             return
         
         self._running = False
-        if self.ws:
-            self.ws.close()
+        if self._ws:
+            self._ws.close()
         if self._thread:
             self._thread.join()
         print('Napcat监听器已停止运行. Nap cat went for a nap~ 😸💤')
 
+    # === 私有方法 ===
+
     def _run(self) -> None:
         """运行监听器主循环"""
-        self.ws.run_forever()
+        self._ws.run_forever()
 
     def _on_open(self, ws: websocket.WebSocketApp) -> None:
         """WebSocket连接建立时的回调
@@ -192,7 +197,7 @@ class NapcatListener:
         print('✓ 已连接到Napcat WebSocket! 好耶!')
 
     def _on_message(self, ws: websocket.WebSocketApp, message: str) -> None:
-        """接收到消息时的回调
+        """回调方法: 接收到消息
         
         Args:
             ws: WebSocket应用实例
@@ -214,7 +219,7 @@ class NapcatListener:
             print(f'消息解析失败: {message}')
 
     def _on_error(self, ws: websocket.WebSocketApp, error: Exception) -> None:
-        """WebSocket错误处理回调
+        """回调方法: WebSocket错误处理
         
         Args:
             ws: WebSocket应用实例
@@ -223,9 +228,9 @@ class NapcatListener:
         error_str = str(error)
         if '10061' in error_str or 'Connection refused' in error_str:
             print('❌ 不好啦! 连接被拒绝: NapCat WebSocket 服务未运行或端口不正确')
-            print(f'   请检查: {self.ws_url}')
+            print(f'   请检查: {self._ws_url}')
         elif '10060' in error_str or 'timed out' in error_str:
-            print(f'❌ 不好啦! 连接超时: 无法访问 {self.ws_url}')
+            print(f'❌ 不好啦! 连接超时: 无法访问 {self._ws_url}')
         else:
             print(f'❌ 不好啦! WebSocket 错误: {error}')
 
@@ -235,7 +240,7 @@ class NapcatListener:
         close_status_code: Optional[int],
         close_msg: Optional[str]
     ) -> None:
-        """WebSocket连接关闭时的回调
+        """回调方法: WebSocket连接关闭
         
         Args:
             ws: WebSocket应用实例

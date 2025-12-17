@@ -16,18 +16,18 @@ class NapcatMessage:
         message_data: 原始 Napcat 消息数据字典
     
     Attributes:
-        message_type: 消息类型 ('private' 或 'group')
-        raw_message: 原始消息字符串
-        message_text: 附带额外信息的消息纯文本字符串
-        text_content: 仅消息内容的纯文本字符串
-        sender_id: 发送者的用户 ID
-        sender_nick: 发送者的昵称
-        group_id: 群 ID (如果是群消息)
-        group_name: 群名称 (如果是群消息)
-        reply_receiver_id: 待回复者的 ID, 私聊消息为用户 ID, 群消息为群 ID
-        is_command: 消息是否为指令
-        command_name: 指令名称 (如果是指令消息)
-        command_args: 指令参数列表 (如果是指令消息)
+        message_type (str): 消息类型 ('private' 或 'group')
+        raw_message (str): 原始消息字符串
+        message_text (str): 附带额外信息的消息纯文本字符串
+        text_content (str): 仅消息内容的纯文本字符串
+        sender_id (str): 发送者的用户 ID
+        sender_nick (str): 发送者的昵称
+        group_id (str): 群 ID (如果是群消息)
+        group_name (str): 群名称 (如果是群消息)
+        reply_receiver_id (str): 待回复者的 ID, 私聊消息为用户 ID, 群消息为群 ID
+        is_command (bool): 消息是否为指令
+        command_name (Optional[str]): 指令名称 (如果是指令消息)
+        command_args (Optional[List[str]]): 指令参数列表 (如果是指令消息)
     """
     def __init__(self, message_data: Dict[str, Any]) -> None:
         self._message_data: Dict[str, Any] = message_data
@@ -44,6 +44,8 @@ class NapcatMessage:
         self._command_name: Optional[str] = None
         self._command_args: Optional[List[str]] = None
         self._face_list: Optional[Dict[str, str]] = None
+
+    # === 属性访问器 ===
 
     @property
     def message_type(self) -> str:
@@ -233,6 +235,8 @@ class NapcatMessage:
         if self._command_args is None:
             self._parse_command()
         return self._command_args
+
+    # === 私有方法 ===
 
     def _parse_command(self) -> None:
         """解析指令消息, 提取指令名称和参数列表"""

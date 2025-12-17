@@ -155,7 +155,6 @@ def initialize_components() -> None:
     """
     # 初始化 Agent 记忆管理器
     agent_memory = AgentMemory(
-        auto_clear_context=Config.AMEM_AUTO_CLEAR_CONTEXT,
         token_limit=Config.AMEM_TOKEN_LIMIT,
         expected_token_usage=Config.AMEM_EXPECTED_TOKEN_USAGE,
         enable_cache_management=Config.AMEM_ENABLE_CACHE_MANAGEMENT,

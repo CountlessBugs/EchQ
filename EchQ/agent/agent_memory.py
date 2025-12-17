@@ -12,11 +12,10 @@ class AgentMemory:
     """管理上下文、长期记忆和对话历史记录的类
     
     该类负责管理智能体的对话记忆，包括上下文管理、自动清理、
-    缓存管理以及对话历史的持久化存储。
+    缓存管理以及对话历史的持久化存储
     
     Attributes:
         context_memory: 上下文记忆列表，存储当前会话的消息
-        auto_clear_context: 是否自动清除上下文记忆
         token_limit: 上下文记忆的最大 token 数限制
         expected_token_usage: 每次对话消耗 token 的期望值, 缓存 token 会按照价格比折合
         enable_cache_management: 是否启用缓存管理
@@ -26,7 +25,6 @@ class AgentMemory:
     """
     def __init__(
         self,
-        auto_clear_context: bool = True,
         token_limit: int = 64000,
         expected_token_usage: int = 16000,
         enable_cache_management: bool = False,
@@ -36,7 +34,6 @@ class AgentMemory:
         """初始化智能体记忆
         
         Args:
-            auto_clear_context: 是否自动清除上下文记忆
             token_limit: 上下文记忆的最大 token 数限制
             expected_token_usage: 每次对话期望的 token 消耗量
             enable_cache_management: 是否启用缓存管理功能
@@ -58,16 +55,40 @@ class AgentMemory:
 
         # 初始化属性
         self.context_memory: List[Dict[str, str]] = []
-        self.auto_clear_context: bool = auto_clear_context
         self.token_limit: int = token_limit
         self.expected_token_usage: int = expected_token_usage
         self.enable_cache_management: bool = enable_cache_management
         self.cache_expiry_seconds: int = cache_expiry_seconds
         self.cache_price_ratio: float = cache_price_ratio
         
-        # 私有属性
+        # 初始化私有属性
         self._current_token_usage: int = 0
         self._cache_expire_timer: Optional[threading.Timer] = None
+
+    # === 属性访问器 ===
+
+    @property
+    def current_token_usage(self) -> int:
+        """获取当前上下文记忆的 token 使用情况
+        
+        Returns:
+            当前使用的 token 数量
+        """
+        return self._current_token_usage
+
+    @current_token_usage.setter
+    def current_token_usage(self, value: int) -> None:
+        """设置当前上下文记忆的 token 使用情况
+        
+        设置后会自动检查是否需要清理上下文记忆并执行清理操作
+        
+        Args:
+            value: 新的 token 使用量
+        """
+        self._current_token_usage = value
+        self._decide_context_clearing()
+
+    # === 记忆添加方法 ===
 
     def add_message(
         self,
@@ -113,6 +134,8 @@ class AgentMemory:
         if role != 'assistant' and self.enable_cache_management:
             self._refresh_cache_timer()
 
+    # === 记忆清理方法 ===
+
     def clear_context_memory(self) -> None:
         """清除上下文记忆并重置相关状态"""
         self.context_memory = []
@@ -139,8 +162,10 @@ class AgentMemory:
         )
         print('✓ 上下文记忆已总结压缩')
 
-    def decide_context_clearing(self, cache_expired: bool = False) -> None:
-        """根据配置和当前状态决定是否清理上下文记忆
+    # ===私有方法===
+
+    def _decide_context_clearing(self, cache_expired: bool = False) -> None:
+        """根据配置和当前状态决定是否清理上下文记忆，如果需要清理则执行清理操作
         
         Args:
             cache_expired: 缓存是否已过期. 如果为 True, 则不应用缓存折扣
@@ -157,30 +182,6 @@ class AgentMemory:
             or self._current_token_usage > self.token_limit
         ):
             self.summarize_context()
-
-    @property
-    def current_token_usage(self) -> int:
-        """获取当前上下文记忆的 token 使用情况
-        
-        Returns:
-            当前使用的 token 数量
-        """
-        return self._current_token_usage
-
-    @current_token_usage.setter
-    def current_token_usage(self, value: int) -> None:
-        """设置当前上下文记忆的 token 使用情况
-        
-        设置后会自动检查是否需要清理上下文记忆
-        
-        Args:
-            value: 新的 token 使用量
-        """
-        self._current_token_usage = value
-        if self.auto_clear_context:
-            self.decide_context_clearing()
-
-    # 私有辅助方法
 
     def _save_to_archive(
         self,
@@ -227,4 +228,4 @@ class AgentMemory:
     def _on_cache_expire(self) -> None:
         """缓存过期处理函数"""
         print('⏰ 上下文记忆缓存已过期')
-        self.decide_context_clearing(cache_expired=True)
+        self._decide_context_clearing(cache_expired=True)
