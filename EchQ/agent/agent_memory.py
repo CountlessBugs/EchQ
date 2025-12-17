@@ -4,8 +4,6 @@ import time
 import threading
 from typing import Optional, Literal, Dict, List, Any
 
-from Echo.config.config_templete import CONFIG_DIR
-
 # 定义消息角色类型
 MessageRole = Literal['user', 'assistant', 'system', 'tool']
 
