@@ -1,6 +1,6 @@
 # EchQ
 
-一个基于 Python 的智能 QQ 聊天机器人框架，通过 NapCat 协议与 QQ 进行交互，支持大语言模型 (LLM) 驱动的对话功能。
+一个基于 Python 的智能 QQ 聊天机器人框架，通过 NapCat 协议与 QQ 进行交互，支持大语言模型 (LLM) 驱动的对话功能
 
 ## ✨ 特性
 
@@ -34,7 +34,7 @@ pip install -r requirements.txt
 
 #### 配置文件设置
 
-将 `config_templete.py` 复制为 `config.py`
+将 `config.py.example` 复制为 `config.py`
 
 编辑 `config/config.py`，填入你的配置：
 ```python
@@ -54,7 +54,7 @@ class Config:
 
 #### 提示词设置
 
-将 `prompt_templete.txt` 复制为 `prompt.txt`
+将 `prompt.txt.example` 复制为 `prompt.txt`
 
 根据需要编辑 `config/prompt.txt`，定制你的 AI 角色人格和行为规则
 
@@ -133,8 +133,8 @@ python app.py
 EchQ/
 ├── app.py                      # 主程序入口
 ├── config/
-│   ├── config_templete.py      # 配置模板
-│   └── prompt_templete.txt     # 提示词模板
+│   ├── config.py.example      # 配置模板
+│   └── prompt.txt.example     # 提示词模板
 ├── agent/
 │   ├── agent.py                # Agent 核心逻辑
 │   └── agent_memory.py         # 记忆管理模块
