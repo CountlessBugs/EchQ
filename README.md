@@ -1,6 +1,6 @@
 # EchQ
 
-一个基于 Python 的智能 QQ 聊天机器人框架，通过 NapCat 协议与 QQ 进行交互，支持大语言模型 (LLM) 驱动的对话功能
+一个基于 Python 的智能 QQ 聊天机器人框架，通过 NapCat 框架与 QQ 进行交互，支持大语言模型 (LLM) 驱动的对话功能
 
 ## ✨ 特性
 
@@ -14,23 +14,49 @@
 ## 📋 系统要求
 
 - Python 3.10+
-- NapCat (QQ 机器人协议实现)
+- NapCat (QQ 机器人框架实现)
 - 支持 OpenAI API 格式的 LLM 服务
 
 ## 🚀 快速开始
 
-### 1. 克隆项目
+### 1. 安装和配置 NapCat
+
+NapCat 是一个现代化的 QQ Bot 协议框架，需要先安装配置才能使用本项目。
+
+#### 安装 NapCat
+
+请访问 [NapCat 官方文档](https://napneko.github.io/) 查看详细的安装教程。
+
+NapCat 提供多种安装方式：
+
+- **Shell 方式**：适合服务器部署，内存占用低（50-100MB），推荐使用
+  - 📖 [Shell 安装教程](https://napneko.github.io/guide/boot/Shell)
+  
+- **Framework 方式**：作为 LiteLoader 插件运行，方便人机交互
+  - 📖 [Framework 安装教程](https://napneko.github.io/guide/boot/Framework)
+
+#### 配置 NapCat
+
+1. 启动 NapCat 后，访问 WebUI 管理界面
+2. 配置 HTTP 和 WebSocket 服务：
+   - HTTP 服务地址（默认：`http://localhost:3000`）
+   - WebSocket 服务地址（默认：`ws://localhost:3001`）
+3. 记录这些地址，后续需要填入 EchQ 配置文件
+
+更多配置信息请参考 [NapCat 配置文档](https://napneko.github.io/config/basic)
+
+### 2. 克隆项目
 ```bash
 git clone https://github.com/CountlessBugs/EchQ
 cd EchQ
 ```
 
-### 2. 安装依赖
+### 3. 安装依赖
 ```bash
 pip install -r requirements.txt
 ```
 
-### 3. 配置项目
+### 4. 配置项目
 
 #### 配置文件设置
 
@@ -58,11 +84,11 @@ class Config:
 
 根据需要编辑 `config/prompt.txt`，定制你的 AI 角色人格和行为规则
 
-### 4. 启动 NapCat
+### 5. 启动 NapCat
 
 确保 NapCat 服务已启动并正确配置 HTTP 和 WebSocket 端口
 
-### 5. 运行程序
+### 6. 运行程序
 ```bash
 python app.py
 ```
