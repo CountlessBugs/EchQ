@@ -133,7 +133,6 @@ python app.py
 
 | 配置项 | 说明 | 默认值 |
 |--------|------|--------|
-| `AMEM_AUTO_CLEAR_CONTEXT` | 是否自动清除上下文记忆 | `True` |
 | `AMEM_TOKEN_LIMIT` | 上下文记忆的最大 token 限制 | `64000` |
 | `AMEM_EXPECTED_TOKEN_USAGE` | 期望的 token 使用量 | `16000` |
 | `AMEM_ENABLE_CACHE_MANAGEMENT` | 是否启用缓存管理 | `False` |
