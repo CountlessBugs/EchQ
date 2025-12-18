@@ -199,7 +199,15 @@ class AgentMemory:
         from pathlib import Path
 
         # 构建对话历史文件路径
-        agent_memory_dir = Path(__file__).parent
+        # 确定项目根目录 (向上两级)
+        current_file = Path(__file__).resolve()
+        project_root = current_file.parent.parent
+
+        # 创建数据目录 (如果不存在)
+        agent_memory_dir = project_root / 'data' / 'agent_memory'
+        agent_memory_dir.mkdir(exist_ok=True)
+
+        # 定义存档文件路径
         conversation_archive_path = agent_memory_dir / 'conversation_archive.jsonl'
 
         try:
