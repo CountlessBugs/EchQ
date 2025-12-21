@@ -2,7 +2,7 @@ import asyncio
 import json
 from typing import Any, Callable, Optional
 
-import requests
+import httpx
 import websockets
 
 
@@ -13,6 +13,7 @@ class NapcatClient:
     """
     def __init__(self) -> None:
         """初始化NapcatClient实例"""
+        self._client: Optional[httpx.AsyncClient] = None
         self._base_url: str = ''
 
     # === 初始化方法 ===
@@ -23,11 +24,23 @@ class NapcatClient:
         Args:
             base_url: Napcat HTTP API的基础URL地址
         """
-        self._base_url = base_url
+        self._base_url = base_url.rstrip('/')
+
+        self._client = httpx.AsyncClient(
+            base_url=self._base_url, 
+            timeout=15.0,
+            headers={"Content-Type": "application/json"}
+        )
+
+    async def close(self) -> None:
+        """关闭客户端，释放资源"""
+        if self._client:
+            await self._client.aclose()
+            self._client = None
 
     # === 发送消息方法 ===
 
-    def send_message(
+    async def send_message(
         self,
         message: list[dict[str, Any]],
         receiver: str,
@@ -43,19 +56,26 @@ class NapcatClient:
         Returns:
             Napcat API的响应结果字典
         """
-        payload: dict[str, Any] = {'message': message}
+        if not self._client:
+            raise RuntimeError("NapcatClient 未初始化，请先调用 initialize()")
 
+        payload: dict[str, Any] = {'message': message}
         if is_group:
-            endpoint = f'{self._base_url}/send_group_msg'
+            endpoint = '/send_group_msg'
             payload['group_id'] = receiver
         else:
-            endpoint = f'{self._base_url}/send_private_msg'
+            endpoint = '/send_private_msg'
             payload['user_id'] = receiver
         
-        response = requests.post(endpoint, json=payload)
-        return response.json()
+        try:
+            response = await self._client.post(endpoint, json=payload)
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            print(f"❌ Napcat 发送失败: {e}")
+            return {"status": "failed", "error": str(e)}
 
-    def send_text_message(
+    async def send_text_message(
         self,
         message: str,
         receiver: str,
@@ -71,17 +91,10 @@ class NapcatClient:
         Returns:
             Napcat API的响应结果字典
         """
-        message_list: list[dict[str, Any]] = [
-            {
-                'type': 'text',
-                'data': {
-                    'text': message
-                }
-            }
-        ]
-        return self.send_message(message_list, receiver, is_group)
+        message_list = [{'type': 'text', 'data': {'text': message}}]
+        return await self.send_message(message_list, receiver, is_group)
 
-    def send_record_message(
+    async def send_record_message(
         self,
         file_path: str,
         receiver: str,
@@ -97,15 +110,8 @@ class NapcatClient:
         Returns:
             Napcat API的响应结果字典
         """
-        message_list: list[dict[str, Any]] = [
-            {
-                'type': 'record',
-                'data': {
-                    'file': file_path
-                }
-            }
-        ]
-        return self.send_message(message_list, receiver, is_group)
+        message_list = [{'type': 'record', 'data': {'file': file_path}}]
+        return await self.send_message(message_list, receiver, is_group)
 
 
 class NapcatListener:

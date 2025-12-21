@@ -150,7 +150,7 @@ async def _handle_message(message_data: Dict[str, Any]) -> None:
         async for chunk in response_stream:
             _send_reply(chunk, message)
 
-def _handle_command(message: NapcatMessage) -> None:
+async def _handle_command(message: NapcatMessage) -> None:
     """处理收到的指令消息
     
     Args:
@@ -184,9 +184,9 @@ def _handle_command(message: NapcatMessage) -> None:
             command_echo = '🤔 未知指令, 发送 /help 获取帮助'
     
     if command_echo:
-        _send_reply(command_echo, message)
+        await _send_reply(command_echo, message)
 
-def _send_reply(content: str, message: NapcatMessage) -> None:
+async def _send_reply(content: str, message: NapcatMessage) -> None:
     """根据消息类型发送回复
     
     Args:
@@ -194,9 +194,9 @@ def _send_reply(content: str, message: NapcatMessage) -> None:
         message: 原始消息对象
     """
     if message.message_type == 'private':
-        napcat_client.send_text_message(content, message.sender_id)
+        await napcat_client.send_text_message(content, message.sender_id)
     elif message.message_type == 'group':
-        napcat_client.send_text_message(
+        await napcat_client.send_text_message(
             content,
             message.group_id,
             is_group=True
