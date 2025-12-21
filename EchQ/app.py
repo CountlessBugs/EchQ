@@ -4,6 +4,7 @@
 处理来自 Napcat 的消息并通过 Agent 生成回复。
 """
 
+import asyncio
 import json
 from typing import Any, Dict, Generator
 
@@ -16,14 +17,14 @@ from napcat.message_formatter import NapcatMessage
 
 # === 程序入口与主循环 ===
 
-def main() -> None:
+async def main() -> None:
     """主函数入口"""
     try:
         # 初始化所有组件
         initialize_components()
         
         # 启动监听器
-        napcat_listener.start()
+        await napcat_listener.start()
 
         # 运行主循环
         run_main_loop()
@@ -118,15 +119,15 @@ def initialize_components() -> None:
 
 # === 清理函数 ===
 
-def cleanup() -> None:
+async def cleanup() -> None:
     """清理资源并关闭连接"""
     print('🧹 正在清理资源...')
-    napcat_listener.stop()
+    await napcat_listener.stop()
     print('✓ 资源清理完成')
 
 # === 消息处理 ===
 
-def reply_to_napcat_message(message: str) -> None:
+async def reply_to_napcat_message(message: str) -> None:
     """处理 Napcat 消息并生成回复
     
     根据消息类型 (私聊/群聊) 调用 Agent 处理消息,
@@ -149,13 +150,13 @@ def reply_to_napcat_message(message: str) -> None:
     post_type: str = message_data.get('post_type', '')
     
     if post_type == 'message':
-        _handle_message(message_data)
+        await _handle_message(message_data)
     elif post_type == 'meta_event':
         _handle_meta_event(message_data)
     elif post_type == 'notice':
         _handle_notice(message_data)
 
-def _handle_message(message_data: Dict[str, Any]) -> None:
+async def _handle_message(message_data: Dict[str, Any]) -> None:
     """处理收到的消息
     
     Args:

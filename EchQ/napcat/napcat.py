@@ -1,13 +1,13 @@
+import asyncio
 import json
-import threading
 from typing import Any, Callable, Optional
 
 import requests
-import websocket
+import websockets
 
 
 class NapcatClient:
-    """Napcat HTTP客户端类
+    """Napcat HTTP 客户端类
     
     用于通过HTTP API发送QQ消息 (文本, 语音等)
     """
@@ -109,9 +109,10 @@ class NapcatClient:
 
 
 class NapcatListener:
-    """Napcat WebSocket监听器类
+    """Napcat WebSocket 监听器类
     
-    用于监听Napcat WebSocket事件并处理接收到的消息
+    基于 asyncio 和 websockets 实现，用于监听 Napcat 事件流
+    采用非阻塞设计，支持在单个线程内与其他异步任务并发运行
     
     Attributes:
         on_message_callback (Optional[Callable[[str], None]]): 接收到消息时的回调函数
@@ -119,12 +120,11 @@ class NapcatListener:
     """
     def __init__(self) -> None:
         """初始化NapcatListener实例"""
-        self._ws: Optional[websocket.WebSocketApp] = None
         self._ws_url: str = ''
         self.on_message_callback: Optional[Callable[[str], None]] = None
         self.filter_heartbeat: bool = True
         self._running: bool = False
-        self._thread: Optional[threading.Thread] = None
+        self._task: Optional[asyncio.Task] = None
 
     # === 初始化方法 ===
 
@@ -144,63 +144,68 @@ class NapcatListener:
         self._ws_url = ws_url
         self.on_message_callback = on_message_callback
         self.filter_heartbeat = filter_heartbeat
-        self._thread = None
         self._running = False
-        
-        # 初始化WebSocket应用
-        self._ws = websocket.WebSocketApp(
-            self._ws_url,
-            on_open=self._on_open,
-            on_message=self._on_message,
-            on_error=self._on_error,
-            on_close=self._on_close
-        )
+        self._task = None
 
     # === 监听器启动与停止方法 ===
 
-    def start(self) -> None:
+    async def start(self) -> None:
         """启动监听器"""
         if self._running:
             print('Napcat监听器已在运行中')
             return
         
+        self._task = asyncio.create_task(self._run())
         self._running = True
-        self._thread = threading.Thread(target=self._run, daemon=True)
-        self._thread.start()
         print('Napcat监听器已启动')
 
-    def stop(self) -> None:
+    async def stop(self) -> None:
         """停止监听器"""
         if not self._running:
             print('Napcat监听器未在运行中')
             return
         
-        self._running = False
-        if self._ws:
-            self._ws.close()
-        if self._thread:
-            self._thread.join()
+        # 发送取消信号，_run 中的 await 处会抛出 CancelledError
+        self._task.cancel()
+        try:
+            await self._task # 等待任务优雅退出
+        except asyncio.CancelledError:
+            pass
+
         print('Napcat监听器已停止运行. Nap cat went for a nap~ 😸💤')
 
     # === 私有方法 ===
 
-    def _run(self) -> None:
+    async def _run(self) -> None:
         """运行监听器主循环"""
-        self._ws.run_forever()
+        try:
+            # 建立连接
+            async with websockets.connect(self._ws_url) as ws:
+                print('✓ 已连接到Napcat WebSocket! 好耶!')
+                
+                # 接收消息
+                async for message in ws:
+                    asyncio.create_task(self._on_message(message))
+                    
+        # 处理连接异常
+        except ConnectionRefusedError:
+            print('❌ 不好啦! 连接被拒绝: NapCat WebSocket 服务未运行或端口不正确')
+            print(f'   请检查: {self._ws_url}')
+        except (asyncio.TimeoutError, OSError) as e:
+            print(f'❌ 不好啦! 连接超时或错误: {e}')
+        except asyncio.CancelledError:
+            # 任务被取消时的正常退出
+            print('Napcat Websocket已关闭')
+            raise
+        except Exception as e:
+            print(f'❌ Napcat监听器运行时发生错误: {e}')
+        finally:
+            self._running = False
 
-    def _on_open(self, ws: websocket.WebSocketApp) -> None:
-        """WebSocket连接建立时的回调
-        
-        Args:
-            ws: WebSocket应用实例
-        """
-        print('✓ 已连接到Napcat WebSocket! 好耶!')
-
-    def _on_message(self, ws: websocket.WebSocketApp, message: str) -> None:
+    async def _on_message(self, message: str) -> None:
         """回调方法: 接收到消息
         
         Args:
-            ws: WebSocket应用实例
             message: 接收到的消息字符串
         """
         try:
@@ -212,42 +217,19 @@ class NapcatListener:
                 and message_data.get('meta_event_type') == 'heartbeat'):
                 return
             
-            print(f'收到消息: {message}')
+            print(f'Napcat 监听器收到消息: {message}')
+
             if self.on_message_callback:
-                self.on_message_callback(message)
+                if self.on_message_callback:
+                    # 检查回调是否是异步函数，如果是则 await，否则直接调用
+                    if asyncio.iscoroutinefunction(self.on_message_callback):
+                        await self.on_message_callback(message)
+                    else:
+                        self.on_message_callback(message)
         except json.JSONDecodeError:
             print(f'消息解析失败: {message}')
-
-    def _on_error(self, ws: websocket.WebSocketApp, error: Exception) -> None:
-        """回调方法: WebSocket错误处理
-        
-        Args:
-            ws: WebSocket应用实例
-            error: 错误对象
-        """
-        error_str = str(error)
-        if '10061' in error_str or 'Connection refused' in error_str:
-            print('❌ 不好啦! 连接被拒绝: NapCat WebSocket 服务未运行或端口不正确')
-            print(f'   请检查: {self._ws_url}')
-        elif '10060' in error_str or 'timed out' in error_str:
-            print(f'❌ 不好啦! 连接超时: 无法访问 {self._ws_url}')
-        else:
-            print(f'❌ 不好啦! WebSocket 错误: {error}')
-
-    def _on_close(
-        self,
-        ws: websocket.WebSocketApp,
-        close_status_code: Optional[int],
-        close_msg: Optional[str]
-    ) -> None:
-        """回调方法: WebSocket连接关闭
-        
-        Args:
-            ws: WebSocket应用实例
-            close_status_code: 关闭状态码
-            close_msg: 关闭消息
-        """
-        print('Napcat Websocket已关闭')
+        except Exception as e:
+            print(f'处理消息时发生错误: {e}')
 
 
 # 全局Napcat客户端和监听器实例
