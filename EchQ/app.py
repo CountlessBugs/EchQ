@@ -136,7 +136,7 @@ async def _handle_message(message_data: Dict[str, Any]) -> None:
         print(f"⚡ 收到指令: {message.text_content}")
         print()
         # 处理指令
-        _handle_command(message)
+        await _handle_command(message)
     else:
         # 打印收到的消息
         print(f"📨 收到消息: {message.message_text}")
@@ -148,7 +148,7 @@ async def _handle_message(message_data: Dict[str, Any]) -> None:
         
         # 逐块发送回复
         async for chunk in response_stream:
-            _send_reply(chunk, message)
+            await _send_reply(chunk, message)
 
 async def _handle_command(message: NapcatMessage) -> None:
     """处理收到的指令消息
