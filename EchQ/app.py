@@ -6,6 +6,7 @@
 
 import asyncio
 import json
+import signal
 from typing import Any, Dict, Generator
 
 from config.config import Config
@@ -19,6 +20,22 @@ from napcat.message_formatter import NapcatMessage
 
 async def main() -> None:
     """主函数入口"""
+    # 创建退出信号灯
+    stop_event = asyncio.Event()
+
+    # 定义信号处理逻辑
+    def ask_to_stop():
+        print('\n⚠️ 收到退出指令，正在安全关闭...')
+        stop_event.set()  # 使 wait() 立即结束
+
+    # 绑定系统信号 (Ctrl+C 和 终止信号)
+    loop = asyncio.get_running_loop()
+    for sig in (signal.SIGINT, signal.SIGTERM):
+        try:
+            loop.add_signal_handler(sig, ask_to_stop)
+        except NotImplementedError:
+            pass
+
     try:
         # 初始化所有组件
         initialize_components()
@@ -26,53 +43,20 @@ async def main() -> None:
         # 启动监听器
         await napcat_listener.start()
 
-        # 运行主循环
-        run_main_loop()
+        print('==================================================')
+        print('=            INITIALIZATION  COMPLETE            =')
+        print('=       Agent 已启动, 按下 Ctrl+C 退出程序       =')
+        print('==================================================')
         
+        # 保持程序运行，直到收到退出信号
+        await stop_event.wait()
+
     except Exception as e:
         print(f'❌ 不好啦! 程序运行出错: {e}')
-        raise
     finally:
-        # 确保资源被正确清理
-        cleanup()
+        # 资源清理
+        await cleanup()
         print('Agent 睡着啦! 再见👋🤖')
-
-def run_main_loop() -> None:
-    """运行主循环
-    
-    保持主线程运行，直到用户输入 'exit' 命令退出。
-    """
-    print('==================================================')
-    print('=            INITIALIZATION  COMPLETE            =')
-    print('=       Agent 已启动, 输入 "exit" 退出程序       =')
-    print('==================================================')
-    
-    try:
-        while True:
-            user_input: str = input()
-            match user_input.strip().lower():
-                case 'help':
-                    print('可用命令:')
-                    print('  help - 显示此帮助信息')
-                    print('  exit - 退出程序')
-                    print('  context - 查看当前上下文记忆')
-                    print('  token - 查看当前上下文记忆的 token 数量')
-                case 'exit':
-                    print('\n👋 正在退出...')
-                    break
-                case 'context':
-                    print('当前上下文记忆:')
-                    for msg in agent.memory.context_memory:
-                        print(f'[{msg['role']}] {msg['content']}')
-                case 'token':
-                    print(f'当前上下文记忆的 token 数量: {agent.memory.current_token_usage}')
-                case _:
-                    print('🤔 未知命令, 输入help获取帮助')
-
-    except KeyboardInterrupt:
-        print('\n\n⚠️ 检测到中断信号，正在退出...')
-    except EOFError:
-        print('\n\n⚠️ 输入流已关闭，正在退出...')
 
 # === 初始化函数 ===
 
@@ -256,4 +240,7 @@ def _handle_notice(notice_data: Dict[str, Any]) -> None:
 
 
 if __name__ == '__main__':
-    main()
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        pass
