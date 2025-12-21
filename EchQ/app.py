@@ -6,8 +6,7 @@
 
 import asyncio
 import json
-import signal
-from typing import Any, Dict, Generator
+from typing import Any, Dict, AsyncIterator
 
 from config.config import Config
 from agent.agent import agent
@@ -20,22 +19,6 @@ from napcat.message_formatter import NapcatMessage
 
 async def main() -> None:
     """主函数入口"""
-    # 创建退出信号灯
-    stop_event = asyncio.Event()
-
-    # 定义信号处理逻辑
-    def ask_to_stop():
-        print('\n⚠️ 收到退出指令，正在安全关闭...')
-        stop_event.set()  # 使 wait() 立即结束
-
-    # 绑定系统信号 (Ctrl+C 和 终止信号)
-    loop = asyncio.get_running_loop()
-    for sig in (signal.SIGINT, signal.SIGTERM):
-        try:
-            loop.add_signal_handler(sig, ask_to_stop)
-        except NotImplementedError:
-            pass
-
     try:
         # 初始化所有组件
         initialize_components()
@@ -49,6 +32,7 @@ async def main() -> None:
         print('==================================================')
         
         # 保持程序运行，直到收到退出信号
+        stop_event = asyncio.Event()
         await stop_event.wait()
 
     except Exception as e:
@@ -159,12 +143,11 @@ async def _handle_message(message_data: Dict[str, Any]) -> None:
         print()
         
         # 发送消息给 Agent 并获取回复流
-        response_stream: Generator[str, None, None] = agent.process_chunks(
-            agent.send_message(message.message_text)
-        )
+        chunks: AsyncIterator[str] = agent.send_message(message.message_text)
+        response_stream: AsyncIterator[str] = agent.process_chunks(chunks)
         
         # 逐块发送回复
-        for chunk in response_stream:
+        async for chunk in response_stream:
             _send_reply(chunk, message)
 
 def _handle_command(message: NapcatMessage) -> None:

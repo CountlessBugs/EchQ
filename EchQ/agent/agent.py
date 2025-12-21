@@ -1,5 +1,6 @@
-from openai import OpenAI
-from typing import Iterator, Optional, Dict, Any, List
+import asyncio
+from openai import AsyncOpenAI
+from typing import Iterator, AsyncIterator, Optional, Dict, Any, List
 
 from .agent_memory import AgentMemory
 
@@ -31,15 +32,15 @@ class LLMClient:
         self.api_key = api_key
         self.model = model
         self.temperature = temperature
-        self._client = OpenAI(api_key=api_key, base_url=api_url)
+        self._client = AsyncOpenAI(api_key=api_key, base_url=api_url)
     
     # === 对话请求方法 ===
 
-    def chat_completion_stream(
+    async def chat_completion_stream(
         self, 
         messages: List[Dict[str, str]], 
         temperature: Optional[float] = None
-    ) -> Iterator:
+    ) -> AsyncIterator:
         """发送聊天请求并返回流式响应
         
         Args:
@@ -49,15 +50,16 @@ class LLMClient:
         Returns:
             流式响应迭代器
         """
-        response = self._client.chat.completions.create(
+        response = await self._client.chat.completions.create(
             model=self.model,
             messages=messages,
             temperature=temperature or self.temperature,
-            stream=True
+            stream=True,
+            stream_options={"include_usage": True}
         )
         return response
     
-    def chat_completion(
+    async def chat_completion(
         self, 
         messages: List[Dict[str, str]], 
         temperature: Optional[float] = None
@@ -71,7 +73,7 @@ class LLMClient:
         Returns:
             完整响应对象
         """
-        response = self._client.chat.completions.create(
+        response = await self._client.chat.completions.create(
             model=self.model,
             messages=messages,
             temperature=temperature or self.temperature,
@@ -130,7 +132,7 @@ class Agent:
 
     # === 对话方法 ===
 
-    def send_message(self, message: str) -> Iterator:
+    async def send_message(self, message: str) -> AsyncIterator:
         """发送消息到LLM并获取流式响应
         
         Args:
@@ -152,13 +154,13 @@ class Agent:
         messages = self._build_messages()
         
         # 发送消息并获取流式响应
-        response_stream = self.llm_client.chat_completion_stream(messages)
+        response_stream = await self.llm_client.chat_completion_stream(messages)
         
         response_content = ''
         final_chunk = None
         
         # 返回流式响应
-        for chunk in response_stream:
+        async for chunk in response_stream:
             final_chunk = chunk
             delta_content = chunk.choices[0].delta.content
             if delta_content:
@@ -175,7 +177,7 @@ class Agent:
     # === 工具方法 ===
 
     @staticmethod
-    def process_chunks(chunks: Iterator, delimiters: List[str] = ['\n']) -> Iterator[str]:
+    async def process_chunks(chunks: AsyncIterator, delimiters: List[str] = ['\n']) -> AsyncIterator[str]:
         """处理流式响应块,提取文本内容并按分割符分割
         
         Args:
@@ -186,7 +188,7 @@ class Agent:
             分割后的文本内容
         """
         buffer = ''
-        for chunk in chunks:
+        async for chunk in chunks:
             delta_content = chunk.choices[0].delta.content
             if delta_content:
                 buffer += delta_content
@@ -206,7 +208,7 @@ class Agent:
         if buffer.strip():
             yield buffer.strip()
         
-    def get_context_summary(self) -> str:
+    async def get_context_summary(self) -> str:
         """调用LLM生成当前上下文记忆的总结
         
         Returns:
@@ -236,7 +238,7 @@ class Agent:
         ]
         
         # 使用较低的温度获取总结
-        response = self.llm_client.chat_completion(messages, temperature=0.3)
+        response = await self.llm_client.chat_completion(messages, temperature=0.3)
         
         return response.choices[0].message.content
 
