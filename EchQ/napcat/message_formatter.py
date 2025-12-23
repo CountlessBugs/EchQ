@@ -1,7 +1,7 @@
 """Napcat 消息格式化工具模块"""
 
 import json
-from typing import Dict, List, Any, Optional, Literal
+from typing import Any, Optional, Literal
 
 
 class NapcatMessage:
@@ -27,10 +27,10 @@ class NapcatMessage:
         reply_receiver_id (str): 待回复者的 ID, 私聊消息为用户 ID, 群消息为群 ID
         is_command (bool): 消息是否为指令
         command_name (Optional[str]): 指令名称 (如果是指令消息)
-        command_args (Optional[List[str]]): 指令参数列表 (如果是指令消息)
+        command_args (Optional[list[str]]): 指令参数列表 (如果是指令消息)
     """
-    def __init__(self, message_data: Dict[str, Any]) -> None:
-        self._message_data: Dict[str, Any] = message_data
+    def __init__(self, message_data: dict[str, Any]) -> None:
+        self._message_data: dict[str, Any] = message_data
         self._message_type: Optional[str] = None
         self._raw_message: Optional[str] = None
         self._message_text: Optional[str] = None
@@ -42,8 +42,8 @@ class NapcatMessage:
         self._reply_receiver_id: Optional[str] = None
         self._is_command: Optional[bool] = None
         self._command_name: Optional[str] = None
-        self._command_args: Optional[List[str]] = None
-        self._face_list: Optional[Dict[str, str]] = None
+        self._command_args: Optional[list[str]] = None
+        self._face_list: Optional[dict[str, str]] = None
 
     # === 属性访问器 ===
 
@@ -100,8 +100,8 @@ class NapcatMessage:
             纯文本消息内容
         """
         if self._text_content is None:
-            text_parts: List[str] = []
-            content_array: List[Dict[str, Any]] = self._message_data.get('message', [])
+            text_parts: list[str] = []
+            content_array: list[dict[str, Any]] = self._message_data.get('message', [])
             for item in content_array:
                 item_type: str = item.get('type', '')
 
@@ -205,7 +205,7 @@ class NapcatMessage:
         if self._is_command is None:
             # FIXME: 群聊中应该检查是否@了机器人自身
             if self._message_data.get('message', []):
-                first_item: Dict[str, Any] = self._message_data['message'][0]
+                first_item: dict[str, Any] = self._message_data['message'][0]
                 if first_item.get('type') == 'face':
                     self._is_command = False
                 else:
@@ -226,7 +226,7 @@ class NapcatMessage:
         return self._command_name
 
     @property
-    def command_args(self) -> Optional[List[str]]:
+    def command_args(self) -> Optional[list[str]]:
         """指令参数列表 (如果是指令消息)
         
         Returns:
@@ -241,7 +241,7 @@ class NapcatMessage:
     def _parse_command(self) -> None:
         """解析指令消息, 提取指令名称和参数列表"""
         if self.is_command:
-            parts: List[str] = self.text_content.strip().split()
+            parts: list[str] = self.text_content.strip().split()
             if parts and len(parts[0]) > 1:
                 self._command_name = parts[0][1:]  # 去掉前导 '/'
                 if len(parts) > 1:
@@ -268,7 +268,7 @@ class NapcatMessage:
 
             face_list_path: Path = Path(__file__).parent / 'face_list.json'
             with open(face_list_path, 'r', encoding='utf-8') as f:
-                self._face_list: Dict[str, str] = json.load(f)
+                self._face_list: dict[str, str] = json.load(f)
 
         return self._face_list.get(face_id, '表情')
 

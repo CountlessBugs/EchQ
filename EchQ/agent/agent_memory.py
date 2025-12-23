@@ -2,7 +2,7 @@ import json
 from pathlib import Path
 import time
 import threading
-from typing import Optional, Literal, Dict, List, Any
+from typing import Optional, Literal, Any
 
 # 定义消息角色类型
 MessageRole = Literal['user', 'assistant', 'system', 'tool']
@@ -54,7 +54,7 @@ class AgentMemory:
             raise ValueError('cache_price_ratio 必须在 (0, 1] 范围内')
 
         # 初始化属性
-        self.context_memory: List[Dict[str, str]] = []
+        self.context_memory: list[dict[str, str]] = []
         self.token_limit: int = token_limit
         self.expected_token_usage: int = expected_token_usage
         self.enable_cache_management: bool = enable_cache_management
@@ -92,7 +92,7 @@ class AgentMemory:
 
     def add_message(
         self,
-        message: Optional[Dict[str, str]] = None,
+        message: Optional[dict[str, str]] = None,
         /,
         *,
         role: Optional[MessageRole] = None,
@@ -212,7 +212,7 @@ class AgentMemory:
 
         try:
             with open(conversation_archive_path, 'a', encoding='utf-8') as f:
-                archive_entry: Dict[str, Any] = {
+                archive_entry: dict[str, Any] = {
                     'role': role,
                     'content': content,
                     'timestamp': timestamp

@@ -3,9 +3,11 @@
 __pycache__/
 *.pyc
 data/
+
 # Config
 EchQ/config/config.py
 EchQ/config/prompt.txt
+.env
 
 # IDE
 .vscode/

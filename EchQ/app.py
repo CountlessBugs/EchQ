@@ -6,7 +6,7 @@
 
 import asyncio
 import json
-from typing import Any, Dict, AsyncIterator
+from typing import Any, AsyncIterator
 
 from config.config import Config
 from agent.agent import agent
@@ -65,8 +65,6 @@ def initialize_components() -> None:
     # 初始化 Agent
     agent.initialize(
         memory=agent_memory,
-        llm_api_url=Config.LLM_API_URL,
-        llm_api_key=Config.LLM_API_KEY,
         llm_model=Config.LLM_MODEL,
         llm_temperature=Config.LLM_TEMPERATURE,
         llm_prompt=Config.LLM_PROMPT,
@@ -106,7 +104,7 @@ async def reply_to_napcat_message(message: str) -> None:
     """
     # 解析消息数据
     try:
-        message_data: Dict[str, Any] = json.loads(message)
+        message_data: dict[str, Any] = json.loads(message)
     except json.JSONDecodeError as e:
         print(f"⚠️ 不太妙: 消息解析失败: {e}")
         return
@@ -124,7 +122,7 @@ async def reply_to_napcat_message(message: str) -> None:
     elif post_type == 'notice':
         _handle_notice(message_data)
 
-async def _handle_message(message_data: Dict[str, Any]) -> None:
+async def _handle_message(message_data: dict[str, Any]) -> None:
     """处理收到的消息
     
     Args:
@@ -204,7 +202,7 @@ async def _send_reply(content: str, message: NapcatMessage) -> None:
 
 # === 其他事件处理 ===
 
-def _handle_meta_event(event_data: Dict[str, Any]) -> None:
+def _handle_meta_event(event_data: dict[str, Any]) -> None:
     """处理元事件
     
     Args:
@@ -213,7 +211,7 @@ def _handle_meta_event(event_data: Dict[str, Any]) -> None:
     print()  # 终端输出添加换行
 
 
-def _handle_notice(notice_data: Dict[str, Any]) -> None:
+def _handle_notice(notice_data: dict[str, Any]) -> None:
     """处理通知事件
     
     Args:

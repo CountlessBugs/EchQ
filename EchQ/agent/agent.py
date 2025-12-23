@@ -1,109 +1,38 @@
 import asyncio
-from openai import AsyncOpenAI
-from typing import Iterator, AsyncIterator, Optional, Dict, Any, List
+from typing import Iterator, AsyncIterator, Optional, Any
+
+from dotenv import load_dotenv
+from langchain.chat_models import init_chat_model
 
 from .agent_memory import AgentMemory
 
-
-class LLMClient:
-    """LLM客户端类, 负责与LLM API的交互
-    
-    Attributes:
-        api_url (str): LLM API 基础 URL
-        api_key (str): LLM API 密钥
-        model (str): 使用的LLM模型名称
-        temperature (float): LLM生成文本的温度参数
-    """
-    def __init__(self,
-        api_url: str,
-        api_key: str,
-        model: str,
-        temperature: float = 1.3
-    ) -> None:
-        """初始化LLM客户端
-        
-        Args:
-            api_url: API基础URL
-            api_key: API密钥
-            model: 模型名称
-            temperature: 温度参数
-        """
-        self.api_url = api_url
-        self.api_key = api_key
-        self.model = model
-        self.temperature = temperature
-        self._client = AsyncOpenAI(api_key=api_key, base_url=api_url)
-    
-    # === 对话请求方法 ===
-
-    async def chat_completion_stream(
-        self, 
-        messages: List[Dict[str, str]], 
-        temperature: Optional[float] = None
-    ) -> AsyncIterator:
-        """发送聊天请求并返回流式响应
-        
-        Args:
-            messages: 消息列表
-            temperature: 温度参数 (可选, 覆盖默认值)
-            
-        Returns:
-            流式响应迭代器
-        """
-        response = await self._client.chat.completions.create(
-            model=self.model,
-            messages=messages,
-            temperature=temperature or self.temperature,
-            stream=True,
-            stream_options={"include_usage": True}
-        )
-        return response
-    
-    async def chat_completion(
-        self, 
-        messages: List[Dict[str, str]], 
-        temperature: Optional[float] = None
-    ) -> Dict[str, Any]:
-        """发送聊天请求并返回完整响应
-        
-        Args:
-            messages: 消息列表
-            temperature: 温度参数 (可选, 覆盖默认值)
-            
-        Returns:
-            完整响应对象
-        """
-        response = await self._client.chat.completions.create(
-            model=self.model,
-            messages=messages,
-            temperature=temperature or self.temperature,
-            stream=False
-        )
-        return response
+# 加载环境变量
+load_dotenv()
 
 
 class Agent:
     """智能体类
     
     Attributes:
-        llm_client (LLMClient): LLM客户端实例
         system_prompt (str): 系统提示词
         memory (AgentMemory): 智能体的记忆管理实例
         can_see_datetime (bool): 是否可以看到当前日期时间
     """
     def __init__(self):
-        self.llm_client: Optional[LLMClient] = None
+        self._llm = None
         self.system_prompt: str = ''
         self.memory: Optional[AgentMemory] = None
         self.can_see_datetime: bool = False
+        # 是否正在回复消息
+        self._is_replying: bool = False
+        # 待处理的消息队列
+        self._pending_messages: list[str] = []
 
     # === 初始化方法 ===
 
     def initialize(
         self, 
         memory: AgentMemory, 
-        llm_api_url: str, 
-        llm_api_key: str, 
         llm_model: str, 
         llm_temperature: float = 0.7, 
         llm_prompt: str = '',
@@ -113,8 +42,6 @@ class Agent:
         
         Args:
             memory: 记忆管理实例
-            llm_api_url: LLM API 基础URL
-            llm_api_key: LLM API 密钥
             llm_model: 使用的LLM模型名称
             llm_temperature: LLM生成文本的温度参数
             llm_prompt: LLM系统提示词
@@ -123,17 +50,15 @@ class Agent:
         self.memory = memory
         self.system_prompt = llm_prompt
         self.can_see_datetime = can_see_datetime
-        self.llm_client = LLMClient(
-            api_url=llm_api_url,
-            api_key=llm_api_key,
-            model=llm_model,
-            temperature=llm_temperature
-        )
+
+        # 初始化 LLM
+        # TODO: 支持更多模型提供商
+        self._llm = init_chat_model(llm_model, model_provider="openai", temperature=llm_temperature)
 
     # === 对话方法 ===
 
     async def send_message(self, message: str) -> AsyncIterator:
-        """发送消息到LLM并获取流式响应
+        """发送一条消息到LLM并获取流式响应
         
         Args:
             message: 要发送的消息内容
@@ -144,40 +69,69 @@ class Agent:
         Yields:
             响应块
         """
-        if not self.llm_client or not self.memory:
+        async for chunk in self.send_messages([message]):
+            yield chunk
+
+    async def send_messages(self, messages: list[str]) -> AsyncIterator:
+        """一次性发送一组消息到LLM并获取流式响应
+        
+        Args:
+            messages: 要发送的消息内容列表
+            
+        Returns:
+            流式响应块迭代器
+            
+        Yields:
+            响应块
+        """
+        if not self._llm or not self.memory:
             raise RuntimeError("Agent not initialized. Call initialize() first.")
         
-        # 将用户消息添加到历史记录
-        self.memory.add_message(role='user', content=message)
-        
-        # 构建消息列表
-        messages = self._build_messages()
-        
-        # 发送消息并获取流式响应
-        response_stream = await self.llm_client.chat_completion_stream(messages)
-        
-        response_content = ''
-        final_chunk = None
-        
-        # 返回流式响应
-        async for chunk in response_stream:
-            final_chunk = chunk
-            delta_content = chunk.choices[0].delta.content
-            if delta_content:
-                response_content += delta_content
-            yield chunk
-        
-        # 将响应添加到历史记录
-        self.memory.add_message(role='assistant', content=response_content)
-        
-        # 记录 token 使用情况
-        if final_chunk and hasattr(final_chunk, 'usage') and final_chunk.usage:
-            self.memory.current_token_usage = final_chunk.usage.total_tokens
+        # 将消息添加到待处理队列
+        self._pending_messages.extend(messages)
+
+        if self._is_replying:
+            return
+
+        self._is_replying = True
+
+        try:
+            while self._pending_messages:
+                # 将用户消息添加到历史记录
+                for message in self._pending_messages:
+                    self.memory.add_message(role='user', content=message)
+                
+                # 清空待处理消息队列
+                self._pending_messages.clear()
+                
+                # 构建消息列表
+                context_messages  = self._build_messages()
+                
+                response_content = ''
+                final_chunk = None
+                
+                # 返回流式响应
+                async for chunk in self._llm.astream(context_messages):
+                    final_chunk = chunk
+                    delta_content = chunk.content
+                    if delta_content:
+                        response_content += delta_content
+                    yield chunk
+                
+                # 将响应添加到历史记录
+                self.memory.add_message(role='assistant', content=response_content)
+                
+                # 记录 token 使用情况
+                if getattr(final_chunk, 'usage_metadata', None):
+                    self.memory.current_token_usage = final_chunk.usage_metadata.get('total_tokens', 0)
+        finally:
+            self._is_replying = False
+                
 
     # === 工具方法 ===
 
     @staticmethod
-    async def process_chunks(chunks: AsyncIterator, delimiters: List[str] = ['\n']) -> AsyncIterator[str]:
+    async def process_chunks(chunks: AsyncIterator, delimiters: list[str] = ['\n']) -> AsyncIterator[str]:
         """处理流式响应块,提取文本内容并按分割符分割
         
         Args:
@@ -189,7 +143,7 @@ class Agent:
         """
         buffer = ''
         async for chunk in chunks:
-            delta_content = chunk.choices[0].delta.content
+            delta_content = chunk.content
             if delta_content:
                 buffer += delta_content
                 # 分割文本内容
@@ -238,12 +192,12 @@ class Agent:
         ]
         
         # 使用较低的温度获取总结
-        response = await self.llm_client.chat_completion(messages, temperature=0.3)
+        response = await self._llm.ainvoke(messages, temperature=0.3)
         
-        return response.choices[0].message.content
+        return response.content
 
     # === 私有方法 ===
-    def _build_messages(self) -> List[Dict[str, str]]:
+    def _build_messages(self) -> list[dict[str, str]]:
         """构建发送给LLM的消息列表
         
         Returns:
