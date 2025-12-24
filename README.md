@@ -66,8 +66,6 @@ pip install -r requirements.txt
 ```python
 class Config:
     # LLM 配置
-    LLM_API_URL = 'https://api.openai.com/v1'  # API 地址
-    LLM_API_KEY = 'your_api_key_here'          # API 密钥
     LLM_MODEL = 'gpt-4o'                       # 模型名称
     LLM_TEMPERATURE = 1.3                      # 温度参数
     
@@ -77,6 +75,19 @@ class Config:
     
     # 其他配置项...
 ```
+
+将 `.env.example` 复制为 `.env`
+
+编辑 `.env`，填入 API 配置
+```env
+# OpenAI 兼容接口
+OPENAI_API_KEY=your_openai_key
+# 可选：自定义 API 端点 (如使用第三方服务)
+# OPENAI_API_BASE=https://api.openai.com/v1
+```
+
+适配的模型提供商详见 https://python.langchain.com/docs/integrations/chat/
+注：目前仅支持 OpenAI ，未来提供其他供应商支持
 
 #### 提示词设置
 
