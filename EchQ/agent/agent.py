@@ -1,5 +1,5 @@
 import asyncio
-from typing import Iterator, AsyncIterator, Optional, Any
+from typing import Optional, Any, TypedDict, Annotated, AsyncIterator
 
 from dotenv import load_dotenv
 from langchain.chat_models import init_chat_model
@@ -32,9 +32,9 @@ class Agent:
 
     def initialize(
         self, 
-        memory: AgentMemory, 
-        llm_model: str, 
-        llm_temperature: float = 0.7, 
+        memory: AgentMemory,
+        llm_model: str,
+        llm_temperature: float = 0.7,
         llm_prompt: str = '',
         can_see_datetime: bool = False
     ) -> None:
@@ -111,8 +111,11 @@ class Agent:
                 final_chunk = None
                 
                 # 返回流式响应
-                async for chunk in self._llm.astream(context_messages):
-                    final_chunk = chunk
+                async for chunk in self._llm.astream(context_messages, stream_usage=True):
+                    # 记录 token 使用情况
+                    if getattr(chunk, 'usage_metadata', None):
+                        self.memory.current_token_usage = chunk.usage_metadata.get('total_tokens', 0)
+
                     delta_content = chunk.content
                     if delta_content:
                         response_content += delta_content
@@ -120,10 +123,6 @@ class Agent:
                 
                 # 将响应添加到历史记录
                 self.memory.add_message(role='assistant', content=response_content)
-                
-                # 记录 token 使用情况
-                if getattr(final_chunk, 'usage_metadata', None):
-                    self.memory.current_token_usage = final_chunk.usage_metadata.get('total_tokens', 0)
         finally:
             self._is_replying = False
                 
