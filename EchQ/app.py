@@ -10,7 +10,6 @@ from typing import Any, AsyncIterator
 
 from config.config import Config
 from agent.agent import agent
-from agent.agent_memory import AgentMemory
 from napcat.napcat import napcat_client, napcat_listener
 from napcat.message_formatter import NapcatMessage
 
@@ -53,22 +52,11 @@ def initialize_components() -> None:
     3. Napcat HTTP 客户端
     4. Napcat WebSocket 监听器
     """
-    # 初始化 Agent 记忆管理器
-    agent_memory = AgentMemory(
-        token_limit=Config.AMEM_TOKEN_LIMIT,
-        expected_token_usage=Config.AMEM_EXPECTED_TOKEN_USAGE,
-        enable_cache_management=Config.AMEM_ENABLE_CACHE_MANAGEMENT,
-        cache_expiry_seconds=Config.AMEM_CACHE_EXPIRY_SECONDS,
-        cache_price_ratio=Config.AMEM_CACHE_PRICE_RATIO
-    )
-    
     # 初始化 Agent
     agent.initialize(
-        memory=agent_memory,
         llm_model=Config.LLM_MODEL,
         llm_temperature=Config.LLM_TEMPERATURE,
-        llm_prompt=Config.LLM_PROMPT,
-        can_see_datetime=Config.AGENT_CAN_SEE_DATETIME
+        llm_prompt=Config.LLM_PROMPT
     )
     
     # 初始化 Napcat HTTP 客户端
@@ -170,14 +158,18 @@ async def _handle_command(message: NapcatMessage) -> None:
             if message.command_args:
                 command_echo = '❌ 指令 /context 不接受任何参数'
             else:
-                command_echo = '当前上下文记忆:'
-                for msg in agent.memory.context_memory:
-                    command_echo += f'\n[{msg['role']}] {msg['content']}'
+                command_echo = '当前上下文记忆(不包含系统提示词):'
+                # FIXME: 上下文过长时无法在一条 QQ 中发送，需要添加翻页功能
+                for msg in agent.context:
+                    # 跳过第一条系统提示词
+                    if msg.type == 'system' and msg == agent.context[0]:
+                        continue
+                    command_echo += f'\n[{msg.type}] {msg.content}'
         case 'token':
             if message.command_args:
                 command_echo = '❌ 指令 /token 不接受任何参数'
             else:
-                command_echo = f'当前上下文记忆的 token 数量: {agent.memory.current_token_usage}'
+                command_echo = f'当前上下文记忆的 token 数量: {agent.token_usage}'
         case _:
             command_echo = '🤔 未知指令, 发送 /help 获取帮助'
     

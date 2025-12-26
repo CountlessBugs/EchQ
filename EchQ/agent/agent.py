@@ -2,131 +2,128 @@ import asyncio
 from typing import Optional, Any, TypedDict, Annotated, AsyncIterator
 
 from dotenv import load_dotenv
+from pydantic import BaseModel, Field
+from langgraph.graph import StateGraph, START, END
+from langgraph.graph.state import CompiledStateGraph
+from langgraph.checkpoint.memory import MemorySaver
 from langchain.chat_models import init_chat_model
-
-from .agent_memory import AgentMemory
+from langchain.chat_models.base import BaseChatModel
+from langchain_core.messages import BaseMessage, SystemMessage, HumanMessage
+from langgraph.graph.message import add_messages
 
 # 加载环境变量
 load_dotenv()
 
 
+class AgentState(TypedDict):
+    """Agent 状态
+
+        用于在 StateGraph 中存储智能体的状态、
+    
+    Attributes:
+    """
+    messages: Annotated[list, add_messages]
+    token_usage: int
+
 class Agent:
     """智能体类
     
     Attributes:
-        system_prompt (str): 系统提示词
-        
-        memory (AgentMemory): 智能体的记忆管理实例
-        can_see_datetime (bool): 是否可以看到当前日期时间
+        llm_prompt: LLM 系统提示词
     """
     def __init__(self):
-        self._llm = None
-        self.system_prompt: str = ''
-        self.memory: Optional[AgentMemory] = None
-        self.can_see_datetime: bool = False
-        # 是否正在回复消息
-        self._is_replying: bool = False
-        # 待处理的消息队列
-        self._pending_messages: list[str] = []
+        self._graph: Optional[CompiledStateGraph] = None
+        self._config = {'configurable': {'thread_id': '0'}}
+        self._llm: Optional[BaseChatModel] = None
+        
+        self.llm_prompt: str = ''
+
+        self._is_replying = False
+        self._pending_messages: list[BaseMessage] = []
+
+    # === 属性方法 ===
+
+    @property
+    def context(self) -> list[BaseMessage]:
+        """获取当前对话的上下文消息列表"""
+        if self._graph is None:
+            raise ValueError('智能体未初始化，请先调用 initialize 方法')
+        state = self._graph.get_state(self._config)
+        return state.values.get('messages', [])
+
+    @property
+    def token_usage(self) -> int:
+        """获取上一次对话的 token 使用量"""
+        if self._graph is None:
+            raise ValueError('智能体未初始化，请先调用 initialize 方法')
+        state = self._graph.get_state(self._config)
+        return state.values.get('token_usage', 0)
 
     # === 初始化方法 ===
 
     def initialize(
-        self, 
-        memory: AgentMemory,
+        self,
         llm_model: str,
         llm_temperature: float = 0.7,
-        llm_prompt: str = '',
-        can_see_datetime: bool = False
+        llm_prompt: str = ''
     ) -> None:
         """初始化智能体
         
         Args:
-            memory: 记忆管理实例
             llm_model: 使用的LLM模型名称
             llm_temperature: LLM生成文本的温度参数
             llm_prompt: LLM系统提示词
-            can_see_datetime: 是否可以看到当前日期时间
         """
-        self.memory = memory
-        self.system_prompt = llm_prompt
-        self.can_see_datetime = can_see_datetime
+        self.llm_prompt = llm_prompt
 
         # 初始化 LLM
         # TODO: 支持更多模型提供商
-        self._llm = init_chat_model(llm_model, model_provider="openai", temperature=llm_temperature)
+        self._llm = init_chat_model(llm_model, model_provider='openai', temperature=llm_temperature)
+        
+        # 构建图
+        self._graph = self._build_graph()
 
     # === 对话方法 ===
-
     async def send_message(self, message: str) -> AsyncIterator:
-        """发送一条消息到LLM并获取流式响应
+        """发送一条消息到LLM并获取响应
         
         Args:
-            message: 要发送的消息内容
-            
-        Returns:
-            流式响应块迭代器
+            message: 发送的消息
             
         Yields:
-            响应块
+            LLM 生成的响应消息片段
         """
-        async for chunk in self.send_messages([message]):
-            yield chunk
-
-    async def send_messages(self, messages: list[str]) -> AsyncIterator:
-        """一次性发送一组消息到LLM并获取流式响应
-        
-        Args:
-            messages: 要发送的消息内容列表
-            
-        Returns:
-            流式响应块迭代器
-            
-        Yields:
-            响应块
-        """
-        if not self._llm or not self.memory:
-            raise RuntimeError("Agent not initialized. Call initialize() first.")
-        
-        # 将消息添加到待处理队列
-        self._pending_messages.extend(messages)
+        if self._graph is None:
+            raise ValueError('智能体未初始化，请先调用 initialize 方法')
+        if self._llm is None:
+            raise ValueError('LLM 未初始化，请先调用 initialize 方法')
 
         if self._is_replying:
+            # 如果正在回复，则将消息加入待处理队列
+            self._pending_messages.append(HumanMessage(content=message))
             return
+        
+        # 获取当前状态，判断是否需要发送 SystemMessage
+        state = await self._graph.aget_state(self._config)
+        
+        # 如果是新对话，则加入系统提示词
+        if not state.values.get('messages'):
+            input_data = {'messages': [SystemMessage(content=self.llm_prompt), HumanMessage(content=message)]}
+        else:
+            input_data = {'messages': [HumanMessage(content=message)]}
+        
+        # 执行图
+        async for event in self._graph.astream_events(
+            input_data,
+            config=self._config,
+            version='v2'
+        ):
+            # 过滤出LLM的token流事件
+            if event['event'] == 'on_chat_model_stream':
+                chunk = event['data']['chunk']
 
-        self._is_replying = True
-
-        try:
-            while self._pending_messages:
-                # 将用户消息添加到历史记录
-                for message in self._pending_messages:
-                    self.memory.add_message(role='user', content=message)
-                
-                # 清空待处理消息队列
-                self._pending_messages.clear()
-                
-                # 构建消息列表
-                context_messages  = self._build_messages()
-                
-                response_content = ''
-                final_chunk = None
-                
-                # 返回流式响应
-                async for chunk in self._llm.astream(context_messages, stream_usage=True):
-                    # 记录 token 使用情况
-                    if getattr(chunk, 'usage_metadata', None):
-                        self.memory.current_token_usage = chunk.usage_metadata.get('total_tokens', 0)
-
-                    delta_content = chunk.content
-                    if delta_content:
-                        response_content += delta_content
+                if getattr(chunk, 'content', None):
                     yield chunk
-                
-                # 将响应添加到历史记录
-                self.memory.add_message(role='assistant', content=response_content)
-        finally:
-            self._is_replying = False
-                
 
     # === 工具方法 ===
 
@@ -161,64 +158,70 @@ class Agent:
         # 返回剩余内容
         if buffer.strip():
             yield buffer.strip()
-        
-    async def get_context_summary(self) -> str:
-        """调用LLM生成当前上下文记忆的总结
-        
-        Returns:
-            上下文总结文本
-        """
-        if not self.llm_client or not self.memory:
-            raise RuntimeError("Agent not initialized. Call initialize() first.")
-        
-        # 构建总结请求的消息
-        history_text = '\n'.join(
-            f"{m['role']}: {m['content']}" for m in self.memory.context_memory
-        )
-        messages = [
-            {
-                'role': 'system', 
-                'content': 'You are a summary assistant. '
-                        'Your ONLY task is to produce a concise summary of the following conversation '
-                        'in its original language. '
-                        'Do NOT extend the dialogue, answer questions, or generate new sentences. '
-                        'Output the summary and NOTHING else. '
-                        'Use the nickname from the message prefix in place of "user", and replace "assistant" with "you".'
-            },
-            {
-                'role': 'user',
-                'content': f'Conversation: """\n{history_text}"""'
-            }
-        ]
-        
-        # 使用较低的温度获取总结
-        response = await self._llm.ainvoke(messages, temperature=0.3)
-        
-        return response.content
 
-    # === 私有方法 ===
-    def _build_messages(self) -> list[dict[str, str]]:
-        """构建发送给LLM的消息列表
+    # === 图构建方法 ===
+
+    def _build_graph(self) -> CompiledStateGraph:
+        """构建智能体的状态图
         
         Returns:
-            消息列表
+            编译后的状态图
         """
-        messages = []
-        # 添加系统提示词
-        if self.system_prompt:
-            messages.append({'role': 'system', 'content': self.system_prompt})
-        # 添加上下文记忆
-        messages.extend(self.memory.context_memory)
-        # 添加当前日期时间信息
-        if self.can_see_datetime:
-            from datetime import datetime
-            current_datetime = datetime.now().strftime('%Y-%m-%d %H:%M')
-            messages.append({
-                'role': 'system',
-                'content': f'Current datetime: {current_datetime}'
-            })
+        workflow = StateGraph(AgentState)
+
+        # 添加节点
+        workflow.add_node('call_llm', self._call_llm_node)
+
+        # 添加边
+        workflow.add_edge(START, 'call_llm')
+        workflow.add_conditional_edges('call_llm', self._has_pending_messages_branch, {
+            True: 'call_llm',
+            False: END
+        })
+
+        return workflow.compile(checkpointer=MemorySaver())
+    
+    # === 节点方法 ===
+
+    async def _call_llm_node(self, state: AgentState) -> AgentState:
+        """调用 LLM 节点处理消息
         
-        return messages
+        Args:
+            state: 当前智能体状态
+            
+        Returns:
+            LLM 生成的响应消息
+        """
+        if self._llm is None:
+            raise ValueError('LLM 未初始化，请先调用 initialize 方法')
+
+        self._is_replying = True
+
+        # 如果有待处理的消息，则添加到状态中
+        if self._pending_messages:
+            state['messages'].extend(self._pending_messages)
+            self._pending_messages.clear()
+
+        # 调用 LLM 生成响应
+        response = await self._llm.ainvoke(state['messages'])
+        usage = getattr(response, 'usage_metadata', {})
+        token_usage = usage.get('total_tokens', 0)
+        
+        # 执行完毕，重置状态
+        self._is_replying = False
+        
+        return {'messages': [response], 'token_usage': token_usage}
+
+    def _has_pending_messages_branch(self, state: AgentState) -> bool:
+        """检查智能体是否有待处理的消息
+        
+        Args:
+            state: 当前智能体状态
+
+        Returns:
+            如果有待处理的消息则返回 True, 否则返回 False
+        """
+        return len(self._pending_messages) > 0
 
 
 agent = Agent()
