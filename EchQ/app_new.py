@@ -168,14 +168,18 @@ async def _handle_command(message: NapcatMessage) -> None:
             if message.command_args:
                 command_echo = '❌ 指令 /context 不接受任何参数'
             else:
-                command_echo = '当前上下文记忆:'
-                for msg in agent.memory.context_memory:
-                    command_echo += f'\n[{msg['role']}] {msg['content']}'
+                command_echo = '当前上下文记忆(不包含系统提示词):'
+                # FIXME: 上下文过长时无法在一条 QQ 中发送，需要添加翻页功能
+                for msg in agent.context:
+                    # 跳过第一条系统提示词
+                    if msg.type == 'system' and msg == agent.context[0]:
+                        continue
+                    command_echo += f'\n[{msg.type}] {msg.content}'
         case 'token':
             if message.command_args:
                 command_echo = '❌ 指令 /token 不接受任何参数'
             else:
-                command_echo = f'当前上下文记忆的 token 数量: {agent.memory.current_token_usage}'
+                command_echo = f'当前上下文记忆的 token 数量: {agent.token_usage}'
         case _:
             command_echo = '🤔 未知指令, 发送 /help 获取帮助'
     

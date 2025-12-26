@@ -23,6 +23,7 @@ class AgentState(TypedDict):
     Attributes:
     """
     messages: Annotated[list, add_messages]
+    token_usage: int
 
 class Agent:
     """智能体类
@@ -32,12 +33,31 @@ class Agent:
     """
     def __init__(self):
         self._graph: Optional[CompiledStateGraph] = None
+        self._config = {'configurable': {'thread_id': '0'}}
         self._llm: Optional[BaseChatModel] = None
         
         self.llm_prompt: str = ''
 
         self._is_replying = False
         self._pending_messages: list[BaseMessage] = []
+
+    # === 属性方法 ===
+
+    @property
+    def context(self) -> list[BaseMessage]:
+        """获取当前对话的上下文消息列表"""
+        if self._graph is None:
+            raise ValueError('智能体未初始化，请先调用 initialize 方法')
+        state = self._graph.get_state(self._config)
+        return state.values.get('messages', [])
+
+    @property
+    def token_usage(self) -> int:
+        """获取上一次对话的 token 使用量"""
+        if self._graph is None:
+            raise ValueError('智能体未初始化，请先调用 initialize 方法')
+        state = self._graph.get_state(self._config)
+        return state.values.get('token_usage', 0)
 
     # === 初始化方法 ===
 
@@ -58,7 +78,7 @@ class Agent:
 
         # 初始化 LLM
         # TODO: 支持更多模型提供商
-        self._llm = init_chat_model(llm_model, model_provider="openai", temperature=llm_temperature)
+        self._llm = init_chat_model(llm_model, model_provider='openai', temperature=llm_temperature)
         
         # 构建图
         self._graph = self._build_graph()
@@ -74,37 +94,35 @@ class Agent:
             LLM 生成的响应消息片段
         """
         if self._graph is None:
-            raise ValueError("智能体未初始化，请先调用 initialize 方法。")
+            raise ValueError('智能体未初始化，请先调用 initialize 方法')
         if self._llm is None:
-            raise ValueError("LLM 未初始化，请先调用 initialize 方法。")
+            raise ValueError('LLM 未初始化，请先调用 initialize 方法')
 
         if self._is_replying:
             # 如果正在回复，则将消息加入待处理队列
             self._pending_messages.append(HumanMessage(content=message))
             return
         
-        # 构造配置，线程 ID 默认为0
-        config = {"configurable": {"thread_id": 0}}
-        
         # 获取当前状态，判断是否需要发送 SystemMessage
-        state = await self._graph.aget_state(config)
+        state = await self._graph.aget_state(self._config)
         
         # 如果是新对话，则加入系统提示词
-        if not state.values.get("messages"):
-            input_data = {"messages": [SystemMessage(content=self.llm_prompt), HumanMessage(content=message)]}
+        if not state.values.get('messages'):
+            input_data = {'messages': [SystemMessage(content=self.llm_prompt), HumanMessage(content=message)]}
         else:
-            input_data = {"messages": [HumanMessage(content=message)]}
+            input_data = {'messages': [HumanMessage(content=message)]}
         
         # 执行图
         async for event in self._graph.astream_events(
             input_data,
-            config=config,
-            version="v2"
+            config=self._config,
+            version='v2'
         ):
             # 过滤出LLM的token流事件
-            if event["event"] == "on_chat_model_stream":
-                chunk = event["data"]["chunk"]
-                if getattr(chunk, "content", None):
+            if event['event'] == 'on_chat_model_stream':
+                chunk = event['data']['chunk']
+
+                if getattr(chunk, 'content', None):
                     yield chunk
 
     # === 工具方法 ===
@@ -175,7 +193,7 @@ class Agent:
             LLM 生成的响应消息
         """
         if self._llm is None:
-            raise ValueError("LLM 未初始化，请先调用 initialize 方法。")
+            raise ValueError('LLM 未初始化，请先调用 initialize 方法')
 
         self._is_replying = True
 
@@ -186,11 +204,13 @@ class Agent:
 
         # 调用 LLM 生成响应
         response = await self._llm.ainvoke(state['messages'])
+        usage = getattr(response, 'usage_metadata', {})
+        token_usage = usage.get('total_tokens', 0)
         
         # 执行完毕，重置状态
         self._is_replying = False
         
-        return {"messages": [response]}
+        return {'messages': [response], 'token_usage': token_usage}
 
     def _has_pending_messages_branch(self, state: AgentState) -> bool:
         """检查智能体是否有待处理的消息
