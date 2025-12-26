@@ -66,7 +66,8 @@ def initialize_components() -> None:
     napcat_listener.initialize(
         ws_url=Config.NAPCAT_WS_URL,
         on_message_callback=reply_to_napcat_message,
-        filter_heartbeat=Config.FILTER_WS_HEARTBEAT
+        filter_heartbeat=Config.FILTER_WS_HEARTBEAT,
+        print_messages=Config.PRINT_WS_MESSAGES
     )
     
     print('✓ 所有组件初始化完成')
@@ -120,13 +121,11 @@ async def _handle_message(message_data: dict[str, Any]) -> None:
     
     if Config.ENABLE_COMMANDS and message.is_command:
         print(f"⚡ 收到指令: {message.text_content}")
-        print()
         # 处理指令
         await _handle_command(message)
     else:
         # 打印收到的消息
         print(f"📨 收到消息: {message.message_text}")
-        print()
         
         # 发送消息给 Agent 并获取回复流
         chunks: AsyncIterator[str] = agent.send_message(message.message_text)

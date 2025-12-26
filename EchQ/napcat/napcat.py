@@ -129,6 +129,7 @@ class NapcatListener:
         self._ws_url: str = ''
         self.on_message_callback: Optional[Callable[[str], None]] = None
         self.filter_heartbeat: bool = True
+        self.print_messages: bool = False
         self._running: bool = False
         self._task: Optional[asyncio.Task] = None
 
@@ -138,7 +139,8 @@ class NapcatListener:
         self,
         ws_url: str,
         on_message_callback: Optional[Callable[[str], None]] = None,
-        filter_heartbeat: bool = True
+        filter_heartbeat: bool = True,
+        print_messages: bool = False
     ) -> None:
         """初始化Napcat监听器
         
@@ -146,10 +148,12 @@ class NapcatListener:
             ws_url: Napcat WebSocket服务的URL地址
             on_message_callback: 接收到消息时的回调函数, 默认为None
             filter_heartbeat: 是否过滤心跳消息, 默认为True
+            print_messages: 是否打印接收消息日志, 默认为False
         """
         self._ws_url = ws_url
         self.on_message_callback = on_message_callback
         self.filter_heartbeat = filter_heartbeat
+        self.print_messages = print_messages
         self._running = False
         self._task = None
 
@@ -223,7 +227,8 @@ class NapcatListener:
                 and message_data.get('meta_event_type') == 'heartbeat'):
                 return
             
-            print(f'Napcat 监听器收到消息: {message}')
+            if self.print_messages:
+                print(f'Napcat 监听器收到消息: {message}')
 
             if self.on_message_callback:
                 if self.on_message_callback:
