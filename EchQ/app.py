@@ -199,7 +199,7 @@ def _handle_meta_event(event_data: dict[str, Any]) -> None:
     Args:
         event_data: 元事件数据字典
     """
-    print()  # 终端输出添加换行
+    pass
 
 
 def _handle_notice(notice_data: dict[str, Any]) -> None:
@@ -208,7 +208,7 @@ def _handle_notice(notice_data: dict[str, Any]) -> None:
     Args:
         notice_data: 通知事件数据字典
     """
-    print()  # 终端输出添加换行
+    pass
 
 
 if __name__ == '__main__':
