@@ -1,0 +1,30 @@
+import types
+
+from langgraph.graph import StateGraph, START, END
+
+from ..agent import agent, AgentState
+from ..nodes.templete_node import templete_node
+
+
+# 统一定义哪些函数需要挂载，以及挂载到 agent 上的名字
+NODE_MAPPING = {
+        '_templete_node': templete_node
+}
+
+# 将节点函数挂载到 agent 实例上
+for attr_name, func in NODE_MAPPING.items():
+    setattr(agent, attr_name, types.MethodType(func, agent))
+
+
+builder = StateGraph(AgentState)
+
+# 添加节点
+builder.add_node('templete', agent._templete_node)
+
+# 添加边
+builder.add_edge(START, 'templete')
+builder.add_edge('templete', END)
+
+workflow = builder.compile()
+
+__all__ = ['workflow']

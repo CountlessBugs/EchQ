@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING
 
 from langchain_core.messages import BaseMessage, SystemMessage, HumanMessage, AIMessage, RemoveMessage
 
+
 # 只有在类型检查时才导入，运行时不导入，防止循环引用
 if TYPE_CHECKING:
     from ..agent import Agent, AgentState
