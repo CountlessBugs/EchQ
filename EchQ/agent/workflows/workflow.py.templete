@@ -2,29 +2,60 @@ import types
 
 from langgraph.graph import StateGraph, START, END
 
-from ..agent import agent, AgentState
-from ..nodes.templete_node import templete_node
-
-
-# 统一定义哪些函数需要挂载，以及挂载到 agent 上的名字
-NODE_MAPPING = {
-        '_templete_node': templete_node
-}
-
-# 将节点函数挂载到 agent 实例上
-for attr_name, func in NODE_MAPPING.items():
-    setattr(agent, attr_name, types.MethodType(func, agent))
+from ..agent import agent, Agent, AgentState
+from ..nodes.templete_node import templete_1_node, templete_2_node, first_branch, second_branch
 
 
 builder = StateGraph(AgentState)
 
-# 添加节点
-builder.add_node('templete', agent._templete_node)
+# 统一定义哪些函数需要挂载, 以及挂载到 agent 上的名字
+NODES = {
+    'templete_1': templete_1_node,
+    'templete_2': templete_2_node,
+}
+
+BRANCHES = {
+    'first': first_branch,
+    'second': second_branch,
+}
+
+builder = StateGraph(AgentState)
+
+# 将节点函数挂载到 agent 实例上并添加到 workflow 中
+for node_name, func in NODES.items():
+    attr_name = '_' + node_name + '_node'
+    setattr(agent, attr_name, types.MethodType(func, agent))
+
+    func.__globals__['Agent'] = Agent
+    func.__globals__['AgentState'] = AgentState
+
+    builder.add_node(node_name, getattr(agent, attr_name))
+
+# 将分支函数挂载到 agent 实例上
+for branch_name, func in BRANCHES.items():
+    attr_name = '_' + branch_name + '_branch'
+    setattr(agent, attr_name, types.MethodType(func, agent))
+
+    func.__globals__['Agent'] = Agent
+    func.__globals__['AgentState'] = AgentState
+
+
+# 添加桥接节点 (如果需要)
+builder.add_node('first_branch_to_second_branch', lambda state: state)
 
 # 添加边
-builder.add_edge(START, 'templete')
-builder.add_edge('templete', END)
+builder.add_edge(START, 'templete_1')
+builder.add_conditional_edges('templete_1', agent._first_branch, {
+    True: 'first_branch_to_second_branch',
+    False: 'END'
+})
+builder.add_conditional_edges('first_branch_to_second_branch', agent._second_branch, {
+    True: 'templete_2',
+    False: 'END'
+})
+builder.add_edge('templete_2', END)
 
 workflow = builder.compile()
+
 
 __all__ = ['workflow']

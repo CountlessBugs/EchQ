@@ -3,10 +3,10 @@ from typing import TYPE_CHECKING
 
 from langchain_core.messages import BaseMessage, SystemMessage, HumanMessage, AIMessage, RemoveMessage
 
-
 # 只有在类型检查时才导入，运行时不导入，防止循环引用
 if TYPE_CHECKING:
     from ..agent import Agent, AgentState
+
 
 async def call_llm_node(self: Agent, state: AgentState) -> AgentState:
     """调用 LLM 节点"""
@@ -61,4 +61,9 @@ async def summarize_context_node(self: Agent, state: AgentState) -> AgentState:
 
     return {'messages': remove_messages + new_messages, 'token_usage': token_usage}
 
-__all__ = ['call_llm_node', 'summarize_context_node']
+def summarize_context_branch(self: Agent, state: AgentState) -> bool:
+    """判断是否需要总结上下文的分支函数"""
+    return state.get('token_usage', 0) > self.token_limit
+
+
+__all__ = ['call_llm_node', 'summarize_context_node', 'summarize_context_branch']

@@ -39,6 +39,7 @@ class Agent:
         self._llm: Optional[BaseChatModel] = None
         
         self.llm_prompt: str = ''
+        self.token_limit: int = 16000
 
         self._is_busy = False
         self._pending_messages: list[BaseMessage] = []
@@ -68,6 +69,8 @@ class Agent:
         llm_model: str,
         llm_temperature: float = 0.7,
         llm_prompt: str = '',
+        token_limit: int = 16000,
+        *,
         workflow: Optional[CompiledStateGraph] = None
     ) -> None:
         """初始化智能体
@@ -78,6 +81,7 @@ class Agent:
             llm_prompt: LLM系统提示词
         """
         self.llm_prompt = llm_prompt
+        self.token_limit = token_limit
 
         # 初始化 LLM
         # TODO: 支持更多模型提供商
