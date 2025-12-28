@@ -1,5 +1,5 @@
 import asyncio
-from typing import Optional, Any, TypedDict, Annotated, AsyncIterator
+from typing import Optional, Any, AsyncIterator
 
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field
@@ -9,25 +9,13 @@ from langgraph.checkpoint.memory import MemorySaver
 from langchain.chat_models import init_chat_model
 from langchain.chat_models.base import BaseChatModel
 from langchain_core.messages import BaseMessage, SystemMessage, HumanMessage, AIMessage, RemoveMessage
-from langgraph.graph.message import add_messages, REMOVE_ALL_MESSAGES
+from langgraph.graph.message import REMOVE_ALL_MESSAGES
+
+from .agent_state import AgentState
 
 # 加载环境变量
 load_dotenv()
 
-
-class AgentState(TypedDict):
-    """Agent 状态
-
-        用于在 StateGraph 中存储智能体的状态、
-    
-    Attributes:
-        messages: 对话消息列表
-        token_usage: 上一次对话的 token 使用量
-    """
-    messages: Annotated[list[BaseMessage], add_messages]
-    # 由于子图无法移除父图的消息，故需要移除 Agent 级别的消息时，通过该字段传递替换消息列表
-    replacement_messages: Optional[list[BaseMessage]]
-    token_usage: int
 
 class Agent:
     """智能体类
@@ -223,15 +211,12 @@ class Agent:
         """出口节点，重置忙碌标志，完成消息替换"""
         self._is_busy = False
 
-        # 检查是否有替换消息
-        replacement_messages = state.get('replacement_messages')
-        if replacement_messages:
-            return {
-                'messages': [RemoveMessage(id=REMOVE_ALL_MESSAGES)] + replacement_messages,
-                'replacement_messages': None
-            }
+        # 移除待移除消息
+        current_message_ids = {m.id for m in state.get('messages', []) if m.id}
+        message_ids_to_remove = state.get('message_ids_to_remove', [])
+        messages_to_remove = [RemoveMessage(id=msg_id) for msg_id in message_ids_to_remove if msg_id in current_message_ids]
 
-        return state
+        return { 'messages': messages_to_remove, 'message_ids_to_remove': ['__CLEAR__'] }
 
     def _has_pending_messages_branch(self, state: AgentState) -> bool:
         """检查智能体是否有待处理的消息

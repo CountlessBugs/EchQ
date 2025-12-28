@@ -2,7 +2,8 @@ import types
 
 from langgraph.graph import StateGraph, START, END
 
-from ..agent import agent, Agent, AgentState
+from ..agent import agent, Agent
+from ..agent_state import AgentState
 from ..nodes.templete_node import templete_1_node, templete_2_node, first_branch, second_branch
 
 

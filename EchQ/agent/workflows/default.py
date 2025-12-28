@@ -2,7 +2,8 @@ import types
 
 from langgraph.graph import StateGraph, START, END
 
-from ..agent import agent, Agent, AgentState
+from ..agent import agent, Agent
+from ..agent_state import AgentState
 from ..nodes.llm import call_llm_node, summarize_context_node, summarize_context_branch
 
 

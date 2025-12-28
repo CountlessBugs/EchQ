@@ -6,7 +6,8 @@ from langgraph.graph.message import REMOVE_ALL_MESSAGES
 
 # 只有在类型检查时才导入，运行时不导入，防止循环引用
 if TYPE_CHECKING:
-    from ..agent import Agent, AgentState
+    from ..agent import Agent
+    from ..agent_state import AgentState
 
 
 async def call_llm_node(self: Agent, state: AgentState) -> AgentState:
@@ -60,13 +61,20 @@ async def summarize_context_node(self: Agent, state: AgentState) -> AgentState:
     usage = getattr(response, 'usage_metadata', {})
     token_usage = usage.get('completion_tokens', 0)
 
+    # 构建待移除的消息 ID 列表
+    message_ids_to_remove = [m.id for m in state['messages']]
+
     # 将摘要作为系统消息添加回上下文中
     new_messages = [
         SystemMessage(content=self.llm_prompt),
         SystemMessage(content=f'<context_summary>\n{summary}\n</context_summary>')
     ]
 
-    return {'replacement_messages': new_messages, 'token_usage': token_usage}
+    return {
+        'messages': [RemoveMessage(REMOVE_ALL_MESSAGES)] + new_messages,
+        'message_ids_to_remove': message_ids_to_remove,
+        'token_usage': token_usage
+    }
 
 def summarize_context_branch(self: Agent, state: AgentState) -> bool:
     """判断是否需要总结上下文的分支函数"""
