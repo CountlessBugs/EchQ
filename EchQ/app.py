@@ -56,7 +56,8 @@ def initialize_components() -> None:
     agent.initialize(
         llm_model=Config.LLM_MODEL,
         llm_temperature=Config.LLM_TEMPERATURE,
-        llm_prompt=Config.LLM_PROMPT
+        llm_prompt=Config.LLM_PROMPT,
+        token_limit=Config.AMEM_TOKEN_LIMIT
     )
     
     # 初始化 Napcat HTTP 客户端

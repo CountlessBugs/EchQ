@@ -2,6 +2,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from langchain_core.messages import BaseMessage, SystemMessage, HumanMessage, AIMessage, RemoveMessage
+from langgraph.graph.message import REMOVE_ALL_MESSAGES
 
 # 只有在类型检查时才导入，运行时不导入，防止循环引用
 if TYPE_CHECKING:
@@ -13,17 +14,24 @@ async def call_llm_node(self: Agent, state: AgentState) -> AgentState:
     if self._llm is None:
         raise ValueError('LLM 未初始化，请先调用 initialize 方法')
 
-    # 如果有待处理的消息，则添加到状态中
+    # 如果有待处理的消息，则添加到上下文中
     if self._pending_messages:
-        state['messages'].extend(self._pending_messages)
-        self._pending_messages.clear()
+        messages_for_llm = list(state['messages']) + list(self._pending_messages)
+    else:
+        messages_for_llm = state['messages']
 
     # 调用 LLM 生成响应
-    response = await self._llm.ainvoke(state['messages'])
+    response = await self._llm.with_config(tags=['chat_response']).ainvoke(messages_for_llm)
+    
+    # 构建新增消息列表
+    new_messages = list(self._pending_messages) + [response]
+    self._pending_messages.clear()
+
+    # 获取 token 使用量
     usage = getattr(response, 'usage_metadata', {})
     token_usage = usage.get('total_tokens', 0)
     
-    return {'messages': [response], 'token_usage': token_usage}
+    return {'messages': new_messages, 'token_usage': token_usage}
 
 async def summarize_context_node(self: Agent, state: AgentState) -> AgentState:
     """总结上下文节点"""
@@ -47,19 +55,18 @@ async def summarize_context_node(self: Agent, state: AgentState) -> AgentState:
     ]
     
     # 使用较低的温度获取总结
-    response = await self._llm.ainvoke(messages, temperature=0.3)
+    response = await self._llm.with_config(tags=['summary']).ainvoke(messages, temperature=0.3)
     summary = response.content
     usage = getattr(response, 'usage_metadata', {})
     token_usage = usage.get('completion_tokens', 0)
 
-    # 清除现有上下文，并将摘要作为系统消息添加回上下文中
-    remove_messages = [RemoveMessage(id=msg.id) for msg in state['messages']]
+    # 将摘要作为系统消息添加回上下文中
     new_messages = [
         SystemMessage(content=self.llm_prompt),
         SystemMessage(content=f'<context_summary>\n{summary}\n</context_summary>')
     ]
 
-    return {'messages': remove_messages + new_messages, 'token_usage': token_usage}
+    return {'replacement_messages': new_messages, 'token_usage': token_usage}
 
 def summarize_context_branch(self: Agent, state: AgentState) -> bool:
     """判断是否需要总结上下文的分支函数"""

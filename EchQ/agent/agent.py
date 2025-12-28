@@ -9,7 +9,7 @@ from langgraph.checkpoint.memory import MemorySaver
 from langchain.chat_models import init_chat_model
 from langchain.chat_models.base import BaseChatModel
 from langchain_core.messages import BaseMessage, SystemMessage, HumanMessage, AIMessage, RemoveMessage
-from langgraph.graph.message import add_messages
+from langgraph.graph.message import add_messages, REMOVE_ALL_MESSAGES
 
 # 加载环境变量
 load_dotenv()
@@ -24,7 +24,9 @@ class AgentState(TypedDict):
         messages: 对话消息列表
         token_usage: 上一次对话的 token 使用量
     """
-    messages: Annotated[list, add_messages]
+    messages: Annotated[list[BaseMessage], add_messages]
+    # 由于子图无法移除父图的消息，故需要移除 Agent 级别的消息时，通过该字段传递替换消息列表
+    replacement_messages: Optional[list[BaseMessage]]
     token_usage: int
 
 class Agent:
@@ -126,10 +128,12 @@ class Agent:
             config=self._config,
             version='v2'
         ):
-            # 过滤出LLM的token流事件
-            if event['event'] == 'on_chat_model_stream':
+            # 过滤出带有 chat_response 标签的 LLM 的 token 流事件
+            if (
+                event['event'] == 'on_chat_model_stream'
+                and 'chat_response' in event.get('tags', [])
+            ):
                 chunk = event['data']['chunk']
-
                 if getattr(chunk, 'content', None):
                     yield chunk
 
@@ -216,8 +220,17 @@ class Agent:
     
     # 出口
     def _exit_node(self, state: AgentState) -> AgentState:
-        """出口节点，重置忙碌标志"""
+        """出口节点，重置忙碌标志，完成消息替换"""
         self._is_busy = False
+
+        # 检查是否有替换消息
+        replacement_messages = state.get('replacement_messages')
+        if replacement_messages:
+            return {
+                'messages': [RemoveMessage(id=REMOVE_ALL_MESSAGES)] + replacement_messages,
+                'replacement_messages': None
+            }
+
         return state
 
     def _has_pending_messages_branch(self, state: AgentState) -> bool:
