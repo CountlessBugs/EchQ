@@ -1,15 +1,14 @@
 # EchQ
 
-一个基于 Python 的智能 QQ 聊天机器人框架，通过 NapCat 框架与 QQ 进行交互，支持大语言模型 (LLM) 驱动的对话功能
+一个基于 Python 的 QQ 聊天机器人应用，采用 LangGraph 图状态机架构，通过 NapCat 框架与 QQ 进行交互，支持大语言模型 (LLM) 驱动的对话功能
 
 ## ✨ 特性
 
 - 🤖 **智能对话**：基于大语言模型的自然语言交互
-- 💬 **多场景支持**：支持私聊和群聊消息处理
 - 🧠 **上下文记忆管理**：智能管理对话上下文，支持 token 限制和自动清理
-- 💰 **缓存优化**：可选的缓存管理功能，降低 API 调用成本
 - ⚡ **指令系统**：内置指令支持，方便查看状态和管理机器人
 - 🔄 **流式响应**：支持流式输出，实时返回 AI 回复
+- 🛠️ **模块化设计**：基于LangGraph的节点化架构，便于功能扩展
 
 ## 📋 系统要求
 
@@ -136,10 +135,6 @@ python app.py
 | 配置项 | 说明 | 默认值 |
 |--------|------|--------|
 | `AMEM_TOKEN_LIMIT` | 上下文记忆的最大 token 限制 | `64000` |
-| `AMEM_EXPECTED_TOKEN_USAGE` | 期望的 token 使用量 | `16000` |
-| `AMEM_ENABLE_CACHE_MANAGEMENT` | 是否启用缓存管理 | `False` |
-| `AMEM_CACHE_EXPIRY_SECONDS` | 缓存过期时间（秒） | `300` |
-| `AMEM_CACHE_PRICE_RATIO` | 缓存价格比率 | `0.5` |
 
 ### NapCat 配置
 
@@ -154,20 +149,29 @@ python app.py
 |--------|------|--------|
 | `ENABLE_COMMANDS` | 是否启用 QQ 指令功能 | `True` |
 | `FILTER_WS_HEARTBEAT` | 是否过滤 WebSocket 心跳日志 | `True` |
+| `PRINT_WS_MESSAGES` | 是否打印 Websocket 消息 | `False` |
 
 ## 🏗️ 项目结构
 ```
 EchQ/
 ├── app.py                      # 主程序入口
 ├── config/
-│   ├── config.py.example      # 配置模板
-│   └── prompt.txt.example     # 提示词模板
+│   ├── config.py.example       # 配置模板
+│   └── prompt.txt.example      # 提示词模板
 ├── agent/
+│   ├── nodes/                  # Agent 功能节点
+│   │   ├── nodes.py.example    # 节点模板
+│   │   ├── basic_nodes.py      # 基础节点
+│   │   └── llm_nodes.py        # LLM 节点
+│   ├── workflows/              # Agent 图工作流
+│   │   ├── wf.py.example       # 工作流模板
+│   │   └── default_wf.py       # 默认工作流
 │   ├── agent.py                # Agent 核心逻辑
-│   └── agent_memory.py         # 记忆管理模块
+│   └── agent_state.py          # Agent 状态定义
 ├── napcat/
 │   ├── napcat.py               # NapCat 客户端
 │   └── message_formatter.py    # 消息格式化工具
+├── .env.example                # 环境变量模板
 └── requirements.txt            # 项目依赖
 ```
 
@@ -180,16 +184,24 @@ EchQ/
 ### 扩展功能
 
 你可以通过修改以下模块来扩展功能：
-- `agent/agent.py` - 添加新的 Agent 能力
-- `app.py` - 添加新的指令或消息处理逻辑
-- `napcat/message_formatter.py` - 自定义消息格式化规则
+- `agent/agent.py` - 添加新的 Agent 状态变量
+- `agent/nodes/` - 创建自定义节点，添加新功能
+- `agent/workflows/` - 定义新的工作流逻辑
+- `app.py` - 添加新的指令或消息处理逻辑，或加载其他工作流
+
+扩展 Agent 功能的具体步骤如下：
+1. 在 `agent/agent_state.py` 中添加需要的状态变量（如果需要）
+2. 在 `agent/nodes/` 目录下创建新的节点文件，定义自定义节点类
+3. 在 `agent/workflows/` 目录下创建新的工作流文件，定义工作流逻辑
+4. 在 `app.py` 中加载新的工作流，将 CompiledGraph 作为 Agent 初始化参数
+
+> **📝 NOTE**  
+> 由于 LangGraph 中子图无法直接移除父图的消息，故需要层层向上传递一个待移除的消息 ID 列表 `message_ids_to_remove`。子图节点的后面需要添加 `basic_nodes` 中的 `cleanup_node` 节点来实际移除消息。Agent 根图中的 `_exit_node` 已经实现了该功能，无需额外添加。
 
 ## ⚠️ 注意事项
 
-1. 请确保 API 密钥的安全，不要将 `config.py` 提交到公开仓库
-2. 根据使用的 LLM 服务调整 token 限制配置
-3. 本项目适用于私聊与小型群聊，大型群聊场景下注意控制回复频率，避免刷屏
-4. 定期检查 token 使用量，控制 API 成本
+1. 请确保 API 密钥的安全，不要将 `.env` 提交到公开仓库
+2. 本项目适用于私聊与小型群聊，大型群聊场景下注意控制回复频率，避免刷屏
 
 ## 🚧 开发进度
 
@@ -205,6 +217,7 @@ EchQ/
 - [x] 可缓存的上下文管理
 - [x] WebSocket 消息监听
 - [x] 自定义 AI 人格配置
+- [x] 处理并发消息
 
 ### 📋 开发计划
 
@@ -214,7 +227,6 @@ EchQ/
   - [ ] 拓展指令集
   - [ ] QQ 指令权限分级 (管理员/好友/访客)
   - [ ] 好友备注功能
-  - [x] 处理并发消息
 
 - [ ] **记忆系统**
   - [ ] 启动时读取历史记忆

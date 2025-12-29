@@ -18,14 +18,6 @@ class Config:
     # ===智能体记忆配置===
     # 上下文记忆的最大 token 数限制
     AMEM_TOKEN_LIMIT = 64000
-    # 消耗 token 的期望值, 用于计算上下文记忆的保留长度
-    AMEM_EXPECTED_TOKEN_USAGE = 16000
-    # 是否启用缓存管理
-    AMEM_ENABLE_CACHE_MANAGEMENT = False
-    # 上下文记忆缓存过期时间, 单位秒
-    AMEM_CACHE_EXPIRY_SECONDS = 300
-    # 上下文记忆缓存价格比率, 用于计算是否清除上下文记忆
-    AMEM_CACHE_PRICE_RATIO = 0.5
 
     # ===其他配置===
     # 是否启用 QQ 指令功能

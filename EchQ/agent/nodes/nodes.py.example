@@ -7,14 +7,14 @@ if TYPE_CHECKING:
     from ..agent_state import AgentState
 
 
-def templete_node(self: Agent, state: AgentState) -> AgentState:
-    """模板节点"""
+def example_node(self: Agent, state: AgentState) -> AgentState:
+    """示例节点"""
     pass
     return {}
 
-def templete_branck(self: Agent, state: AgentState) -> bool:
-    """模板分支"""
+def example_branch(self: Agent, state: AgentState) -> bool:
+    """示例分支"""
     return True
 
 
-__all__ = ['templete_node']
+__all__ = ['example_node', 'example_branch']

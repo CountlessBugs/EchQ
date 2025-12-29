@@ -171,7 +171,7 @@ class Agent:
 
         if workflow is None:
             # 加载默认工作流
-            from .workflows.default import workflow as default_workflow
+            from .workflows.default_wf import workflow as default_workflow
             workflow = default_workflow
 
         builder.add_node('workflow', workflow)

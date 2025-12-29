@@ -4,20 +4,17 @@ from langgraph.graph import StateGraph, START, END
 
 from ..agent import agent, Agent
 from ..agent_state import AgentState
-from ..nodes.templete_node import templete_1_node, templete_2_node, first_branch, second_branch
+from ..nodes.llm_nodes import call_llm_node, summarize_context_node, summarize_context_branch
 
-
-builder = StateGraph(AgentState)
 
 # 统一定义哪些函数需要挂载, 以及挂载到 agent 上的名字
 NODES = {
-    'templete_1': templete_1_node,
-    'templete_2': templete_2_node,
+    'call_llm': call_llm_node,
+    'summarize_context': summarize_context_node,
 }
 
 BRANCHES = {
-    'first': first_branch,
-    'second': second_branch,
+    'summarize_context': summarize_context_branch,
 }
 
 builder = StateGraph(AgentState)
@@ -36,25 +33,25 @@ for node_name, func in NODES.items():
 for branch_name, func in BRANCHES.items():
     attr_name = '_' + branch_name + '_branch'
     setattr(agent, attr_name, types.MethodType(func, agent))
-
+    
     func.__globals__['Agent'] = Agent
     func.__globals__['AgentState'] = AgentState
 
 
-# 添加桥接节点 (如果需要)
-builder.add_node('first_branch_to_second_branch', lambda state: state)
+# 添加桥接节点
+builder.add_node('has_pending_messages_branch_to_summarize_context_branch', lambda state: state)
 
 # 添加边
-builder.add_edge(START, 'templete_1')
-builder.add_conditional_edges('templete_1', agent._first_branch, {
-    True: 'first_branch_to_second_branch',
-    False: 'END'
+builder.add_edge(START, 'call_llm')
+builder.add_conditional_edges('call_llm', agent._has_pending_messages_branch, {
+    True: 'call_llm',
+    False: 'has_pending_messages_branch_to_summarize_context_branch'
 })
-builder.add_conditional_edges('first_branch_to_second_branch', agent._second_branch, {
-    True: 'templete_2',
-    False: 'END'
+builder.add_conditional_edges('has_pending_messages_branch_to_summarize_context_branch', agent._summarize_context_branch, {
+    True: 'summarize_context',
+    False: END
 })
-builder.add_edge('templete_2', END)
+builder.add_edge('summarize_context', END)
 
 workflow = builder.compile()
 
