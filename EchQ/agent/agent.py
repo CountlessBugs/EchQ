@@ -86,6 +86,8 @@ class Agent:
         }
         self._graph.update_state(self._config, initial_state)
 
+        self._is_busy = False
+
     # === 对话方法 ===
 
     async def send_message(self, message: str) -> AsyncIterator:
@@ -107,25 +109,28 @@ class Agent:
             self._pending_messages.append(HumanMessage(content=message))
             return
         
-        # 获取当前状态，判断是否需要发送 SystemMessage
-        state = await self._graph.aget_state(self._config)
+        self._is_busy = True
         
-        input_data = {'messages': [HumanMessage(content=message)]}
-        
-        # 执行图
-        async for event in self._graph.astream_events(
-            input_data,
-            config=self._config,
-            version='v2'
-        ):
-            # 过滤出带有 chat_response 标签的 LLM 的 token 流事件
-            if (
-                event['event'] == 'on_chat_model_stream'
-                and 'chat_response' in event.get('tags', [])
+        try:
+            input_data = {'messages': [HumanMessage(content=message)]}
+            
+            # 执行图
+            async for event in self._graph.astream_events(
+                input_data,
+                config=self._config,
+                version='v2'
             ):
-                chunk = event['data']['chunk']
-                if getattr(chunk, 'content', None):
-                    yield chunk
+                # 过滤出带有 chat_response 标签的 LLM 的 token 流事件
+                if (
+                    event['event'] == 'on_chat_model_stream'
+                    and 'chat_response' in event.get('tags', [])
+                ):
+                    chunk = event['data']['chunk']
+                    if getattr(chunk, 'content', None):
+                        yield chunk
+
+        finally:
+            self._is_busy = False
 
     # === 工具方法 ===
 
@@ -179,10 +184,7 @@ class Agent:
         builder.add_node('workflow', workflow)
 
         # 设置入口
-        builder.add_conditional_edges(START, self._entry_branch, {
-            True: 'workflow',
-            False: END
-        })
+        builder.add_edge(START, 'workflow')
         # 设置出口
         builder.add_node('exit', self._exit_node)
         builder.add_edge('workflow', 'exit')
@@ -191,28 +193,10 @@ class Agent:
         return builder.compile(checkpointer=MemorySaver())
     
     # === 节点方法 ===
-
-    # 入口
-    def _entry_branch(self, state: AgentState) -> bool:
-        """入口分支，检查智能体是否处于可用状态，并设置忙碌标志
-        
-        Returns:
-            如果智能体可用则返回 True, 否则返回 False
-        """
-        if self._llm is None:
-            raise ValueError('LLM 未初始化，请先调用 initialize 方法')
-        
-        if self._is_busy:
-            return False
-        self._is_busy = True
-
-        return True
     
     # 出口
     def _exit_node(self, state: AgentState) -> AgentState:
-        """出口节点，重置忙碌标志，完成消息替换"""
-        self._is_busy = False
-
+        """出口节点，完成消息替换"""
         # 移除待移除消息
         current_message_ids = {m.id for m in state.get('messages', []) if m.id}
         message_ids_to_remove = state.get('message_ids_to_remove', [])
