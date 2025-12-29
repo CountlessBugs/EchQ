@@ -26,10 +26,9 @@ async def call_llm_node(self: Agent, state: AgentState) -> AgentState:
     current_time = datetime.now()
     formatted_time = current_time.strftime('%Y-%m-%d %H:%M')  # 格式化为字符串
     time_message = SystemMessage(content=f'<current_time>{formatted_time}</current_time>')
-    messages_for_llm.append(time_message)
 
     # 调用 LLM 生成响应
-    response = await self._llm.with_config(tags=['chat_response']).ainvoke(messages_for_llm)
+    response = await self._llm.with_config(tags=['chat_response']).ainvoke(messages_for_llm + [time_message])
     
     # 构建新增消息列表
     new_messages = list(self._pending_messages) + [response]
