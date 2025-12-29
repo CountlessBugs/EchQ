@@ -2,7 +2,6 @@ import asyncio
 from typing import Optional, Any, AsyncIterator
 
 from dotenv import load_dotenv
-from pydantic import BaseModel, Field
 from langgraph.graph import StateGraph, START, END
 from langgraph.graph.state import CompiledStateGraph
 from langgraph.checkpoint.memory import MemorySaver
