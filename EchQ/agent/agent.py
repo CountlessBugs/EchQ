@@ -80,6 +80,12 @@ class Agent:
         # 构建图
         self._graph = self._build_graph(workflow)
 
+        # 初始化状态
+        initial_state: AgentState = {
+            'messages': [SystemMessage(content=self.llm_prompt, id='system_prompt')],
+        }
+        self._graph.update_state(self._config, initial_state)
+
     # === 对话方法 ===
 
     async def send_message(self, message: str) -> AsyncIterator:
@@ -104,11 +110,7 @@ class Agent:
         # 获取当前状态，判断是否需要发送 SystemMessage
         state = await self._graph.aget_state(self._config)
         
-        # 如果是新对话，则加入系统提示词
-        if not state.values.get('messages'):
-            input_data = {'messages': [SystemMessage(content=self.llm_prompt), HumanMessage(content=message)]}
-        else:
-            input_data = {'messages': [HumanMessage(content=message)]}
+        input_data = {'messages': [HumanMessage(content=message)]}
         
         # 执行图
         async for event in self._graph.astream_events(

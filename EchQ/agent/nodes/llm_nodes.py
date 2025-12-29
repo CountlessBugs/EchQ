@@ -1,5 +1,6 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
+from datetime import datetime
 
 from langchain_core.messages import BaseMessage, SystemMessage, HumanMessage, AIMessage, RemoveMessage
 from langgraph.graph.message import REMOVE_ALL_MESSAGES
@@ -20,6 +21,12 @@ async def call_llm_node(self: Agent, state: AgentState) -> AgentState:
         messages_for_llm = list(state['messages']) + list(self._pending_messages)
     else:
         messages_for_llm = state['messages']
+
+    # 在消息末尾添加当前时间(本地时间)
+    current_time = datetime.now()
+    formatted_time = current_time.strftime('%Y-%m-%d %H:%M')  # 格式化为字符串
+    time_message = SystemMessage(content=f'<current_time>{formatted_time}</current_time>')
+    messages_for_llm.append(time_message)
 
     # 调用 LLM 生成响应
     response = await self._llm.with_config(tags=['chat_response']).ainvoke(messages_for_llm)
@@ -64,10 +71,14 @@ async def summarize_context_node(self: Agent, state: AgentState) -> AgentState:
     # 构建待移除的消息 ID 列表
     message_ids_to_remove = [m.id for m in state['messages']]
 
+    # 获取当前时间(本地时间)
+    current_time = datetime.now()
+    formatted_time = current_time.strftime('%Y-%m-%d %H:%M')  # 格式化为字符串
+
     # 将摘要作为系统消息添加回上下文中
     new_messages = [
-        SystemMessage(content=self.llm_prompt),
-        SystemMessage(content=f'<context_summary>\n{summary}\n</context_summary>')
+        SystemMessage(content=self.llm_prompt, id='system_prompt'),
+        SystemMessage(content=f'<context_summary summary_time={formatted_time}>\n{summary}\n</context_summary>')
     ]
 
     return {

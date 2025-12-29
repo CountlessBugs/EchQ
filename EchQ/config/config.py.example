@@ -12,8 +12,6 @@ class Config:
     LLM_PROMPT = ''
 
     # ===智能体配置===
-    # 是否可以看到当前日期时间
-    AGENT_CAN_SEE_DATETIME = False
 
     # ===智能体记忆配置===
     # 上下文记忆的最大 token 数限制
