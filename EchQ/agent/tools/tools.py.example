@@ -1,0 +1,67 @@
+from typing import Annotated
+
+from pydantic import Field
+from langchain_core.tools import tool
+from langgraph.prebuilt import InjectedState
+from langgraph.types import Command
+from langchain_core.messages import ToolMessage
+
+# 代码规范:
+# 工具函数以 _tool 结尾, 在装饰器的第一个参数中指定实际名称(删去 _tool 后缀)
+# 装饰器中需加入 parse_docstring=True 来自动解析文档字符串, 文档字符串中需包含 Args 部分来描述参数
+# 需要校验的参数使用 Annotated 和 Field 进行类型和约束定义
+
+@tool('example', parse_docstring=True)
+def example_tool(
+    example_param1: str,
+    example_param2: Annotated[int, Field(gt=0, lt=100)]
+):
+    """示例工具函数
+
+        函数描述
+
+    Args:
+        example_param1: 示例参数1
+        example_param2: 示例参数2, 范围在0到100之间
+    """
+    pass
+    return f"Example with param1: {example_param1} and param2: {example_param2}"
+
+# 如果需要使用状态, 则将第一个参数设为 state: Annotated[dict, InjectedState]. 状态参数不需要在文档字符串中描述
+# 如果需要更新状态, 则返回 Command 对象, 并在 update 字段中指定要更新的状态内容
+# 在更新状态的同时也需要返回消息给 Agent, 将第二个参数设为 tool_call_id: Annotated[str, InjectedState("tool_call_id")]
+# 上述参数同样不需要在文档字符串中描述. 同时需要在返回值的 message 中添加 ToolMessage 对象, 并指定 tool_call_id 字段
+
+@tool('example_with_state', parse_docstring=True)
+def example_with_state_tool(
+    state: Annotated[dict, InjectedState],
+    tool_call_id: Annotated[str, InjectedState("tool_call_id")],
+    example_param1: str,
+    example_param2: Annotated[int, Field(gt=0, lt=100)]
+):
+    """示例工具函数
+
+        该示例函数展示了如何使用状态
+
+    Args:
+        example_param1: 示例参数1
+        example_param2: 示例参数2, 范围在0到100之间
+    """
+    pass
+    return Command(
+        update={
+            # 返回给 Agent 的内容
+            # 注意: 必须带上 tool_call_id
+            'messages': [
+                ToolMessage(
+                    content='tool executed successfully',
+                    tool_call_id=tool_call_id
+                )
+            ],
+            # 更新其他状态
+            'example_state': 'updated value'
+        }
+    )
+
+
+__all__ = ["example_tool", "example_with_state_tool"]
