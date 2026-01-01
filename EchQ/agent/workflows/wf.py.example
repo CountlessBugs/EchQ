@@ -11,59 +11,59 @@ builder = StateGraph(AgentState)
 
 # 统一定义哪些函数需要挂载, 以及挂载到 agent 上的名字
 NODES = {
-    'example_1': example_1_node,
-    'example_2': example_2_node,
+    "example_1": example_1_node,
+    "example_2": example_2_node,
 }
 
 BRANCHES = {
-    'first': first_branch,
-    'second': second_branch,
+    "first": first_branch,
+    "second": second_branch,
 }
 
 builder = StateGraph(AgentState)
 
 # 将节点函数挂载到 agent 实例上并添加到 workflow 中
 for node_name, func in NODES.items():
-    attr_name = '_' + node_name + '_node'
+    attr_name = "_" + node_name + "_node"
     setattr(agent, attr_name, types.MethodType(func, agent))
 
-    func.__globals__['Agent'] = Agent
-    func.__globals__['AgentState'] = AgentState
+    func.__globals__["Agent"] = Agent
+    func.__globals__["AgentState"] = AgentState
 
     builder.add_node(node_name, getattr(agent, attr_name))
 
 # 将分支函数挂载到 agent 实例上
 for branch_name, func in BRANCHES.items():
-    attr_name = '_' + branch_name + '_branch'
+    attr_name = "_" + branch_name + "_branch"
     setattr(agent, attr_name, types.MethodType(func, agent))
 
-    func.__globals__['Agent'] = Agent
-    func.__globals__['AgentState'] = AgentState
+    func.__globals__["Agent"] = Agent
+    func.__globals__["AgentState"] = AgentState
 
 
 # 添加工具调用节点 (如果需要)
 if agent.tool_node is not None:
-    builder.add_node('execute_tool_calls', agent.tool_node)
+    builder.add_node("execute_tool_calls", agent.tool_node)
 else:
     # 如果没有工具则添加占位节点
-    builder.add_node('execute_tool_calls', lambda state: state)
+    builder.add_node("execute_tool_calls", lambda state: state)
 
 # 添加桥接节点 (如果需要)
-builder.add_node('goto_second_branch', lambda state: state)
+builder.add_node("goto_second_branch", lambda state: state)
 
 # 添加边
-builder.add_edge(START, 'example_1')
-builder.add_conditional_edges('example_1', agent._first_branch, {
-    True: 'goto_second_branch',
-    False: 'END'
+builder.add_edge(START, "example_1")
+builder.add_conditional_edges("example_1", agent._first_branch, {
+    True: "goto_second_branch",
+    False: "END"
 })
-builder.add_conditional_edges('goto_second_branch', agent._second_branch, {
-    True: 'example_2',
-    False: 'END'
+builder.add_conditional_edges("goto_second_branch", agent._second_branch, {
+    True: "example_2",
+    False: "END"
 })
-builder.add_edge('example_2', END)
+builder.add_edge("example_2", END)
 
 workflow = builder.compile()
 
 
-__all__ = ['workflow']
+__all__ = ["workflow"]

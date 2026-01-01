@@ -25,21 +25,21 @@ async def main() -> None:
         # 启动监听器
         await napcat_listener.start()
 
-        print('==================================================')
-        print('=            INITIALIZATION  COMPLETE            =')
-        print('=       Agent 已启动, 按下 Ctrl+C 退出程序       =')
-        print('==================================================')
+        print("==================================================")
+        print("=            INITIALIZATION  COMPLETE            =")
+        print("=       Agent 已启动, 按下 Ctrl+C 退出程序       =")
+        print("==================================================")
         
         # 保持程序运行，直到收到退出信号
         stop_event = asyncio.Event()
         await stop_event.wait()
 
     except Exception as e:
-        print(f'❌ 不好啦! 程序运行出错: {e}')
+        print(f"❌ 不好啦! 程序运行出错: {e}")
     finally:
         # 资源清理
         await cleanup()
-        print('Agent 睡着啦! 再见👋🤖')
+        print("Agent 睡着啦! 再见👋🤖")
 
 # === 初始化函数 ===
 
@@ -73,15 +73,15 @@ def initialize_components() -> None:
         print_messages=Config.PRINT_WS_MESSAGES
     )
     
-    print('✓ 所有组件初始化完成')
+    print("✓ 所有组件初始化完成")
 
 # === 清理函数 ===
 
 async def cleanup() -> None:
     """清理资源并关闭连接"""
-    print('🧹 正在清理资源...')
+    print("🧹 正在清理资源...")
     await napcat_listener.stop()
-    print('✓ 资源清理完成')
+    print("✓ 资源清理完成")
 
 # === 消息处理 ===
 
@@ -105,13 +105,13 @@ async def handle_napcat_message(message: str) -> None:
         return
 
     # 根据消息类型处理
-    post_type: str = message_data.get('post_type', '')
+    post_type: str = message_data.get("post_type", "")
     
-    if post_type == 'message':
+    if post_type == "message":
         await _reply_to_message(message_data)
-    elif post_type == 'meta_event':
+    elif post_type == "meta_event":
         _handle_meta_event(message_data)
-    elif post_type == 'notice':
+    elif post_type == "notice":
         _handle_notice(message_data)
 
 async def _reply_to_message(message_data: dict[str, Any]) -> None:
@@ -137,9 +137,9 @@ async def _reply_to_message(message_data: dict[str, Any]) -> None:
         # 逐块发送回复
         async for chunk in response_stream:
             if isinstance(chunk, dict):
-                await _send_reply(chunk.get('type', 'text'), chunk.get('content', ''), message)
+                await _send_reply(chunk.get("type", "text"), chunk.get("content", ""), message)
             elif isinstance(chunk, str):
-                await _send_reply('text', chunk, message)
+                await _send_reply("text", chunk, message)
 
 async def _handle_command(message: NapcatMessage) -> None:
     """处理收到的指令消息
@@ -147,39 +147,39 @@ async def _handle_command(message: NapcatMessage) -> None:
     Args:
         message: 消息对象
     """
-    command_echo: str = ''
+    command_echo: str = ""
     match message.command_name:
-        case 'help':
+        case "help":
             if message.command_args:
-                command_echo = '❌ 指令 /help 不接受任何参数'
+                command_echo = "❌ 指令 /help 不接受任何参数"
             else:
                 command_echo = (
-                    '可用指令:\n'
-                    '/help - 显示此帮助信息\n'
-                    '/context - 查看当前上下文记忆\n'
-                    '/token - 查看当前上下文记忆的 token 数量'
+                    "可用指令:\n"
+                    "/help - 显示此帮助信息\n"
+                    "/context - 查看当前上下文记忆\n"
+                    "/token - 查看当前上下文记忆的 token 数量"
                 )
-        case 'context':
+        case "context":
             if message.command_args:
-                command_echo = '❌ 指令 /context 不接受任何参数'
+                command_echo = "❌ 指令 /context 不接受任何参数"
             else:
-                command_echo = '当前上下文记忆(不包含系统提示词):'
+                command_echo = "当前上下文记忆(不包含系统提示词):"
                 # FIXME: 上下文过长时无法在一条 QQ 中发送，需要添加翻页功能
                 for msg in agent.context:
                     # 跳过第一条系统提示词
-                    if msg.type == 'system' and msg == agent.context[0]:
+                    if msg.type == "system" and msg == agent.context[0]:
                         continue
-                    command_echo += f'\n[{msg.type}] {msg.content}'
-        case 'token':
+                    command_echo += f"\n[{msg.type}] {msg.content}"
+        case "token":
             if message.command_args:
-                command_echo = '❌ 指令 /token 不接受任何参数'
+                command_echo = "❌ 指令 /token 不接受任何参数"
             else:
-                command_echo = f'当前上下文记忆的 token 数量: {agent.token_usage}'
+                command_echo = f"当前上下文记忆的 token 数量: {agent.token_usage}"
         case _:
-            command_echo = '🤔 未知指令, 发送 /help 获取帮助'
+            command_echo = "🤔 未知指令, 发送 /help 获取帮助"
     
     if command_echo:
-        await _send_reply('text', command_echo, message)
+        await _send_reply("text", command_echo, message)
 
 async def _send_reply(type: str, content: str, message: NapcatMessage) -> None:
     """根据消息类型发送回复
@@ -189,14 +189,14 @@ async def _send_reply(type: str, content: str, message: NapcatMessage) -> None:
         message: 原始消息对象
     """
     message_list = []
-    if type == 'text':
-        message_list = [{'type': 'text', 'data': {'text': content}}]
-    elif type in ['image', 'record', 'file']:
-        message_list = [{'type': type, 'data': {'file': content}}]
+    if type == "text":
+        message_list = [{"type": "text", "data": {"text": content}}]
+    elif type in ["image", "record", "file"]:
+        message_list = [{"type": type, "data": {"file": content}}]
 
-    if message.message_type == 'private':
+    if message.message_type == "private":
         await napcat_client.send_message(message_list, message.sender_id, is_group=False)
-    elif message.message_type == 'group':
+    elif message.message_type == "group":
         await napcat_client.send_message(message_list, message.group_id, is_group=True)
 
 # === 其他事件处理 ===
@@ -219,7 +219,7 @@ def _handle_notice(notice_data: dict[str, Any]) -> None:
     pass
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     try:
         asyncio.run(main())
     except KeyboardInterrupt:

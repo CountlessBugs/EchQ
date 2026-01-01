@@ -43,7 +43,7 @@ class ToolCallResult(TypedDict):
 
 # === 自定义 Reducer 函数 ===
 
-CLEAR = '__CLEAR__'  # 清空标志
+CLEAR = "__CLEAR__"  # 清空标志
 
 def add_to_list(left: list, right: list) -> list:
     """将右侧列表添加到左侧列表中, 支持清空操作"""
@@ -63,10 +63,10 @@ def add_unique_dict(left: list[dict], right: list[dict]) -> list[dict]:
         return []
     
     if left is not None:
-        existing_ids = {d['id'] for d in left if 'id' in d}
-        right = [d for d in right if 'id' in d and d['id'] not in existing_ids]
+        existing_ids = {d["id"] for d in left if "id" in d}
+        right = [d for d in right if "id" in d and d["id"] not in existing_ids]
 
     return (left or []) + (right or [])
 
 
-__all__ = ['AgentState', 'ToolCallResult', CLEAR]
+__all__ = ["AgentState", "ToolCallResult", CLEAR]

@@ -17,4 +17,4 @@ def example_branch(self: Agent, state: AgentState) -> bool:
     return True
 
 
-__all__ = ['example_node', 'example_branch']
+__all__ = ["example_node", "example_branch"]

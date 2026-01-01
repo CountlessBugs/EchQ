@@ -14,7 +14,7 @@ class NapcatClient:
     def __init__(self) -> None:
         """初始化NapcatClient实例"""
         self._client: Optional[httpx.AsyncClient] = None
-        self._base_url: str = ''
+        self._base_url: str = ""
 
     # === 初始化方法 ===
 
@@ -24,7 +24,7 @@ class NapcatClient:
         Args:
             base_url: Napcat HTTP API的基础URL地址
         """
-        self._base_url = base_url.rstrip('/')
+        self._base_url = base_url.rstrip("/")
 
         self._client = httpx.AsyncClient(
             base_url=self._base_url, 
@@ -59,13 +59,13 @@ class NapcatClient:
         if not self._client:
             raise RuntimeError("NapcatClient 未初始化，请先调用 initialize()")
 
-        payload: dict[str, Any] = {'message': message}
+        payload: dict[str, Any] = {"message": message}
         if is_group:
-            endpoint = '/send_group_msg'
-            payload['group_id'] = receiver
+            endpoint = "/send_group_msg"
+            payload["group_id"] = receiver
         else:
-            endpoint = '/send_private_msg'
-            payload['user_id'] = receiver
+            endpoint = "/send_private_msg"
+            payload["user_id"] = receiver
         
         try:
             response = await self._client.post(endpoint, json=payload)
@@ -91,7 +91,7 @@ class NapcatClient:
         Returns:
             Napcat API的响应结果字典
         """
-        message_list = [{'type': 'text', 'data': {'text': message}}]
+        message_list = [{"type": "text", "data": {"text": message}}]
         return await self.send_message(message_list, receiver, is_group)
 
     async def send_image_message(
@@ -110,7 +110,7 @@ class NapcatClient:
         Returns:
             Napcat API的响应结果字典
         """
-        message_list = [{'type': 'image', 'data': {'file': file_path}}]
+        message_list = [{"type": "image", "data": {"file": file_path}}]
         return await self.send_message(message_list, receiver, is_group)
 
     async def send_record_message(
@@ -129,7 +129,7 @@ class NapcatClient:
         Returns:
             Napcat API的响应结果字典
         """
-        message_list = [{'type': 'record', 'data': {'file': file_path}}]
+        message_list = [{"type": "record", "data": {"file": file_path}}]
         return await self.send_message(message_list, receiver, is_group)
 
 
@@ -145,7 +145,7 @@ class NapcatListener:
     """
     def __init__(self) -> None:
         """初始化NapcatListener实例"""
-        self._ws_url: str = ''
+        self._ws_url: str = ""
         self.on_message_callback: Optional[Callable[[str], None]] = None
         self.filter_heartbeat: bool = True
         self.print_messages: bool = False
@@ -181,17 +181,17 @@ class NapcatListener:
     async def start(self) -> None:
         """启动监听器"""
         if self._running:
-            print('Napcat监听器已在运行中')
+            print("Napcat监听器已在运行中")
             return
         
         self._task = asyncio.create_task(self._run())
         self._running = True
-        print('Napcat监听器已启动')
+        print("Napcat监听器已启动")
 
     async def stop(self) -> None:
         """停止监听器"""
         if not self._running:
-            print('Napcat监听器未在运行中')
+            print("Napcat监听器未在运行中")
             return
         
         # 发送取消信号，_run 中的 await 处会抛出 CancelledError
@@ -201,7 +201,7 @@ class NapcatListener:
         except asyncio.CancelledError:
             pass
 
-        print('Napcat监听器已停止运行. Nap cat went for a nap~ 😸💤')
+        print("Napcat监听器已停止运行. Nap cat went for a nap~ 😸💤")
 
     # === 私有方法 ===
 
@@ -210,7 +210,7 @@ class NapcatListener:
         try:
             # 建立连接
             async with websockets.connect(self._ws_url) as ws:
-                print('✓ 已连接到Napcat WebSocket! 好耶!')
+                print("✓ 已连接到Napcat WebSocket! 好耶!")
                 
                 # 接收消息
                 async for message in ws:
@@ -218,16 +218,16 @@ class NapcatListener:
                     
         # 处理连接异常
         except ConnectionRefusedError:
-            print('❌ 不好啦! 连接被拒绝: NapCat WebSocket 服务未运行或端口不正确')
-            print(f'   请检查: {self._ws_url}')
+            print("❌ 不好啦! 连接被拒绝: NapCat WebSocket 服务未运行或端口不正确")
+            print(f"   请检查: {self._ws_url}")
         except (asyncio.TimeoutError, OSError) as e:
-            print(f'❌ 不好啦! 连接超时或错误: {e}')
+            print(f"❌ 不好啦! 连接超时或错误: {e}")
         except asyncio.CancelledError:
             # 任务被取消时的正常退出
-            print('Napcat Websocket已关闭')
+            print("Napcat Websocket已关闭")
             raise
         except Exception as e:
-            print(f'❌ Napcat监听器运行时发生错误: {e}')
+            print(f"❌ Napcat监听器运行时发生错误: {e}")
         finally:
             self._running = False
 
@@ -242,12 +242,12 @@ class NapcatListener:
             
             # 过滤心跳消息
             if (isinstance(message_data, dict) and self.filter_heartbeat
-                and message_data.get('post_type') == 'meta_event'
-                and message_data.get('meta_event_type') == 'heartbeat'):
+                and message_data.get("post_type") == "meta_event"
+                and message_data.get("meta_event_type") == "heartbeat"):
                 return
             
             if self.print_messages:
-                print(f'Napcat 监听器收到消息: {message}')
+                print(f"Napcat 监听器收到消息: {message}")
 
             if self.on_message_callback:
                 if self.on_message_callback:
@@ -257,13 +257,13 @@ class NapcatListener:
                     else:
                         self.on_message_callback(message)
         except json.JSONDecodeError:
-            print(f'消息解析失败: {message}')
+            print(f"消息解析失败: {message}")
         except Exception as e:
-            print(f'处理消息时发生错误: {e}')
+            print(f"处理消息时发生错误: {e}")
 
 
 # 全局Napcat客户端和监听器实例
 napcat_client = NapcatClient()
 napcat_listener = NapcatListener()
 
-__all__ = ['napcat_client', 'napcat_listener']
+__all__ = ["napcat_client", "napcat_listener"]

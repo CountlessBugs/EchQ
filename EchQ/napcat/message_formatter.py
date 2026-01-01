@@ -16,7 +16,7 @@ class NapcatMessage:
         message_data: 原始 Napcat 消息数据字典
     
     Attributes:
-        message_type (str): 消息类型 ('private' 或 'group')
+        message_type (str): 消息类型 ("private" 或 "group")
         raw_message (str): 原始消息字符串
         message_text (str): 附带额外信息的消息纯文本字符串
         text_content (str): 仅消息内容的纯文本字符串
@@ -49,13 +49,13 @@ class NapcatMessage:
 
     @property
     def message_type(self) -> str:
-        """消息类型 ('private' 或 'group')
+        """消息类型 ("private" 或 "group")
         
         Returns:
             消息类型字符串
         """
         if self._message_type is None:
-            self._message_type = self._message_data.get('message_type', '')
+            self._message_type = self._message_data.get("message_type", "")
         return self._message_type
 
     @property
@@ -66,7 +66,7 @@ class NapcatMessage:
             原始消息字符串
         """
         if self._raw_message is None:
-            self._raw_message = self._message_data.get('raw_message', '')
+            self._raw_message = self._message_data.get("raw_message", "")
         return self._raw_message
 
     @property
@@ -81,10 +81,10 @@ class NapcatMessage:
             格式化后的消息文本
         """
         if self._message_text is None:
-            if self.message_type == 'private':
-                self._message_text = f'[private] {self.sender_nick}: {self.text_content}'
-            elif self.message_type == 'group':
-                self._message_text = f'[group] {self.group_name} {self.sender_nick}: {self.text_content}'
+            if self.message_type == "private":
+                self._message_text = f"[private] {self.sender_nick}: {self.text_content}"
+            elif self.message_type == "group":
+                self._message_text = f"[group] {self.group_name} {self.sender_nick}: {self.text_content}"
             else:
                 self._message_text = self.text_content
         
@@ -101,25 +101,25 @@ class NapcatMessage:
         """
         if self._text_content is None:
             text_parts: list[str] = []
-            content_array: list[dict[str, Any]] = self._message_data.get('message', [])
+            content_array: list[dict[str, Any]] = self._message_data.get("message", [])
             for item in content_array:
-                item_type: str = item.get('type', '')
+                item_type: str = item.get("type", "")
 
-                if item_type == 'text':
-                    text: str = item.get('data', {}).get('text', '')
+                if item_type == "text":
+                    text: str = item.get("data", {}).get("text", "")
                     text_parts.append(text)
                     
-                elif item_type == 'face':
-                    face_text: Optional[str] = item.get('data', {}).get('raw', {}).get('faceText')
+                elif item_type == "face":
+                    face_text: Optional[str] = item.get("data", {}).get("raw", {}).get("faceText")
                     if face_text is not None:
                         text_parts.append(face_text)
                     else:
                         # 获取表情 ID
-                        face_id: str = item.get('data', {}).get('id', '')
-                        text_parts.append('/' + self._get_face_text_by_id(face_id))
-                    text_parts.append(' ')  # 表情用空格分隔
+                        face_id: str = item.get("data", {}).get("id", "")
+                        text_parts.append("/" + self._get_face_text_by_id(face_id))
+                    text_parts.append(" ")  # 表情用空格分隔
 
-            self._text_content = ''.join(text_parts).strip()
+            self._text_content = "".join(text_parts).strip()
 
         return self._text_content
 
@@ -131,7 +131,7 @@ class NapcatMessage:
             用户 ID 字符串
         """
         if self._sender_id is None:
-            self._sender_id = str(self._message_data.get('sender', {}).get('user_id', ''))
+            self._sender_id = str(self._message_data.get("sender", {}).get("user_id", ""))
         return self._sender_id
 
     @property
@@ -142,7 +142,7 @@ class NapcatMessage:
             用户昵称字符串
         """
         if self._sender_nick is None:
-            self._sender_nick = self._message_data.get('sender', {}).get('nickname', '')
+            self._sender_nick = self._message_data.get("sender", {}).get("nickname", "")
         return self._sender_nick
     
     @property
@@ -153,10 +153,10 @@ class NapcatMessage:
             群 ID 字符串, 非群消息返回空字符串
         """
         if self._group_id is None:
-            if self.message_type == 'group':
-                self._group_id = str(self._message_data.get('group_id', ''))
+            if self.message_type == "group":
+                self._group_id = str(self._message_data.get("group_id", ""))
             else:
-                self._group_id = ''
+                self._group_id = ""
         return self._group_id
     
     @property
@@ -167,10 +167,10 @@ class NapcatMessage:
             群名称字符串, 非群消息返回空字符串
         """
         if self._group_name is None:
-            if self.message_type == 'group':
-                self._group_name = self._message_data.get('group_name', '')
+            if self.message_type == "group":
+                self._group_name = self._message_data.get("group_name", "")
             else:
-                self._group_name = ''
+                self._group_name = ""
         return self._group_name
 
     @property
@@ -185,31 +185,31 @@ class NapcatMessage:
             接收者 ID 字符串
         """
         if self._reply_receiver_id is None:
-            if self.message_type == 'private':
-                self._reply_receiver_id = str(self._message_data.get('sender', {}).get('user_id', ''))
-            elif self.message_type == 'group':
-                self._reply_receiver_id = str(self._message_data.get('group_id', ''))
+            if self.message_type == "private":
+                self._reply_receiver_id = str(self._message_data.get("sender", {}).get("user_id", ""))
+            elif self.message_type == "group":
+                self._reply_receiver_id = str(self._message_data.get("group_id", ""))
             else:
-                self._reply_receiver_id = ''
+                self._reply_receiver_id = ""
         return self._reply_receiver_id
 
     @property
     def is_command(self) -> bool:
         """消息是否为指令
         
-        以 '/' 开头的消息被视为指令
+        以 "/" 开头的消息被视为指令
         
         Returns:
             如果是指令则返回 True, 否则返回 False
         """
         if self._is_command is None:
             # FIXME: 群聊中应该检查是否@了机器人自身
-            if self._message_data.get('message', []):
-                first_item: dict[str, Any] = self._message_data['message'][0]
-                if first_item.get('type') == 'face':
+            if self._message_data.get("message", []):
+                first_item: dict[str, Any] = self._message_data["message"][0]
+                if first_item.get("type") == "face":
                     self._is_command = False
                 else:
-                    self._is_command = self.text_content.strip().startswith('/')
+                    self._is_command = self.text_content.strip().startswith("/")
             else:
                 self._is_command = False
         return self._is_command
@@ -243,13 +243,13 @@ class NapcatMessage:
         if self.is_command:
             parts: list[str] = self.text_content.strip().split()
             if parts and len(parts[0]) > 1:
-                self._command_name = parts[0][1:]  # 去掉前导 '/'
+                self._command_name = parts[0][1:]  # 去掉前导 "/"
                 if len(parts) > 1:
                     self._command_args = parts[1:]  # 除去指令名称的其余部分
                 else:
                     self._command_args = []
             else:
-                self._command_name = ''
+                self._command_name = ""
         else:
             self._command_name = None
 
@@ -266,11 +266,11 @@ class NapcatMessage:
             # 加载表情列表 JSON 文件
             from pathlib import Path
 
-            face_list_path: Path = Path(__file__).parent / 'face_list.json'
-            with open(face_list_path, 'r', encoding='utf-8') as f:
+            face_list_path: Path = Path(__file__).parent / "face_list.json"
+            with open(face_list_path, "r", encoding="utf-8") as f:
                 self._face_list: dict[str, str] = json.load(f)
 
-        return self._face_list.get(face_id, '表情')
+        return self._face_list.get(face_id, "表情")
 
 
-__all__ = ['NapcatMessage']
+__all__ = ["NapcatMessage"]

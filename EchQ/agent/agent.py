@@ -26,13 +26,13 @@ class Agent:
     """
     def __init__(self):
         self._graph: Optional[CompiledStateGraph] = None
-        self._config = {'configurable': {'thread_id': '0'}}
+        self._config = {"configurable": {"thread_id": "0"}}
         self._llm: Optional[BaseChatModel] = None
         self._llm_with_tools: Optional[BaseChatModel] = None
         self._tools: dict[str, BaseTool] = {}
         self.tool_node: Optional[ToolNode] = None
         
-        self.llm_prompt: str = ''
+        self.llm_prompt: str = ""
         self.token_limit: int = 16000
 
         self._is_busy = False
@@ -44,17 +44,17 @@ class Agent:
     def context(self) -> list[BaseMessage]:
         """获取当前对话的上下文消息列表"""
         if self._graph is None:
-            raise ValueError('智能体未初始化，请先调用 initialize 方法')
+            raise ValueError("智能体未初始化，请先调用 initialize 方法")
         state = self._graph.get_state(self._config)
-        return state.values.get('messages', [])
+        return state.values.get("messages", [])
 
     @property
     def token_usage(self) -> int:
         """获取上一次对话的 token 使用量"""
         if self._graph is None:
-            raise ValueError('智能体未初始化，请先调用 initialize 方法')
+            raise ValueError("智能体未初始化，请先调用 initialize 方法")
         state = self._graph.get_state(self._config)
-        return state.values.get('token_usage', 0)
+        return state.values.get("token_usage", 0)
 
     # === 初始化方法 ===
 
@@ -62,7 +62,7 @@ class Agent:
         self,
         llm_model: str,
         llm_temperature: float = 0.7,
-        llm_prompt: str = '',
+        llm_prompt: str = "",
         token_limit: int = 16000,
         *,
         workflow: Optional[CompiledStateGraph] = None,
@@ -83,7 +83,7 @@ class Agent:
 
         # 初始化 LLM
         # TODO: 支持更多模型提供商
-        self._llm = init_chat_model(llm_model, model_provider='openai', temperature=llm_temperature)
+        self._llm = init_chat_model(llm_model, model_provider="openai", temperature=llm_temperature)
         
         # 绑定工具
         if tools is not None:
@@ -98,7 +98,7 @@ class Agent:
 
         # 初始化状态
         initial_state: AgentState = {
-            'messages': [SystemMessage(content=self.llm_prompt, id='system_prompt')],
+            "messages": [SystemMessage(content=self.llm_prompt, id="system_prompt")],
         }
         self._graph.update_state(self._config, initial_state)
 
@@ -116,9 +116,9 @@ class Agent:
             LLM 生成的响应消息片段
         """
         if self._graph is None:
-            raise ValueError('智能体未初始化，请先调用 initialize 方法')
+            raise ValueError("智能体未初始化，请先调用 initialize 方法")
         if self._llm is None:
-            raise ValueError('LLM 未初始化，请先调用 initialize 方法')
+            raise ValueError("LLM 未初始化，请先调用 initialize 方法")
 
         if self._is_busy:
             # 如果正在回复，则将消息加入待处理队列
@@ -128,28 +128,28 @@ class Agent:
         self._is_busy = True
         
         try:
-            input_data = {'messages': [HumanMessage(content=message)]}
+            input_data = {"messages": [HumanMessage(content=message)]}
 
             # 执行图
             async for event in self._graph.astream_events(
                 input_data,
                 config=self._config,
-                version='v2'
+                version="v2"
             ):
                 # 过滤出带有 chat_response 标签的 LLM 的 token 流事件
                 if (
-                    event['event'] == 'on_chat_model_stream'
-                    and 'chat_response' in event.get('tags', [])
+                    event["event"] == "on_chat_model_stream"
+                    and "chat_response" in event.get("tags", [])
                 ):
-                    chunk = event['data']['chunk']
-                    if getattr(chunk, 'content', None):
+                    chunk = event["data"]["chunk"]
+                    if getattr(chunk, "content", None):
                         yield chunk
 
                 # 捕获工具执行结束事件
-                elif event['event'] == 'on_tool_end':
+                elif event["event"] == "on_tool_end":
                     await asyncio.sleep(0.05)  # 确保工具结果已写入状态
                     state = self._graph.get_state(self._config)
-                    tool_results = state.values.get('tool_call_results', [])
+                    tool_results = state.values.get("tool_call_results", [])
                     
                     if tool_results:     
                         # 返回工具调用结果
@@ -157,7 +157,7 @@ class Agent:
                             yield result
 
                         # 清空工具调用结果
-                        self._graph.update_state(self._config, {'tool_call_results': [CLEAR]})
+                        self._graph.update_state(self._config, {"tool_call_results": [CLEAR]})
 
         finally:
             self._is_busy = False
@@ -165,7 +165,7 @@ class Agent:
     # === 工具方法 ===
 
     @staticmethod
-    async def process_chunks(chunks: AsyncIterator, delimiters: list[str] = ['\n']) -> AsyncIterator[str]:
+    async def process_chunks(chunks: AsyncIterator, delimiters: list[str] = ["\n"]) -> AsyncIterator[str]:
         """处理流式响应块, 提取文本内容并按分割符分割, 工具调用结果保持不变
         
         Args:
@@ -175,10 +175,10 @@ class Agent:
         Yields:
             分割后的文本内容
         """
-        buffer = ''
+        buffer = ""
         async for chunk in chunks:
             # 判断是否为工具调用结果, 如果是则直接 yield
-            if isinstance(chunk, dict) and 'tool_name' in chunk:
+            if isinstance(chunk, dict) and "tool_name" in chunk:
                 yield chunk
                 continue
 
@@ -216,14 +216,14 @@ class Agent:
             from .workflows.default_wf import workflow as default_workflow
             workflow = default_workflow
 
-        builder.add_node('workflow', workflow)
+        builder.add_node("workflow", workflow)
 
         # 设置入口
-        builder.add_edge(START, 'workflow')
+        builder.add_edge(START, "workflow")
         # 设置出口
-        builder.add_node('exit', self._exit_node)
-        builder.add_edge('workflow', 'exit')
-        builder.add_edge('exit', END)
+        builder.add_node("exit", self._exit_node)
+        builder.add_edge("workflow", "exit")
+        builder.add_edge("exit", END)
 
         return builder.compile(checkpointer=MemorySaver())
     
@@ -233,11 +233,11 @@ class Agent:
     def _exit_node(self, state: AgentState) -> AgentState:
         """出口节点，完成消息替换"""
         # 移除待移除消息
-        current_message_ids = {m.id for m in state.get('messages', []) if m.id}
-        message_ids_to_remove = state.get('message_ids_to_remove', [])
+        current_message_ids = {m.id for m in state.get("messages", []) if m.id}
+        message_ids_to_remove = state.get("message_ids_to_remove", [])
         messages_to_remove = [RemoveMessage(id=msg_id) for msg_id in message_ids_to_remove if msg_id in current_message_ids]
 
-        return { 'messages': messages_to_remove, 'message_ids_to_remove': [CLEAR] }
+        return { "messages": messages_to_remove, "message_ids_to_remove": [CLEAR] }
 
     def _has_pending_messages_branch(self, state: AgentState) -> bool:
         """检查智能体是否有待处理的消息
@@ -250,4 +250,4 @@ class Agent:
 
 agent = Agent()
 
-__all__ = ['agent', 'Agent', 'AgentState']
+__all__ = ["agent", "Agent", "AgentState"]
