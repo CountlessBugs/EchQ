@@ -4,6 +4,7 @@ from langgraph.graph import StateGraph, START, END
 
 from ..agent import agent, Agent
 from ..agent_state import AgentState
+from ..nodes.basic_nodes import has_tool_calls_branch
 from ..nodes.llm_nodes import call_llm_node, summarize_context_node, summarize_context_branch
 
 
@@ -14,6 +15,7 @@ NODES = {
 }
 
 BRANCHES = {
+    'has_tool_calls': has_tool_calls_branch,
     'summarize_context': summarize_context_branch,
 }
 
@@ -38,16 +40,32 @@ for branch_name, func in BRANCHES.items():
     func.__globals__['AgentState'] = AgentState
 
 
+# 添加工具调用节点
+if agent.tool_node is not None:
+    builder.add_node('execute_tool_calls', agent.tool_node)
+else:
+    # 如果没有工具则添加占位节点
+    builder.add_node('execute_tool_calls', lambda state: state)
+
 # 添加桥接节点
-builder.add_node('has_pending_messages_branch_to_summarize_context_branch', lambda state: state)
+builder.add_node('goto_has_pending_messages_branch', lambda state: state)
+builder.add_node('goto_summarize_context_branch', lambda state: state)
 
 # 添加边
 builder.add_edge(START, 'call_llm')
-builder.add_conditional_edges('call_llm', agent._has_pending_messages_branch, {
-    True: 'call_llm',
-    False: 'has_pending_messages_branch_to_summarize_context_branch'
+builder.add_conditional_edges('call_llm', agent._has_tool_calls_branch, {
+    True: 'execute_tool_calls',
+    False: 'goto_has_pending_messages_branch'
 })
-builder.add_conditional_edges('has_pending_messages_branch_to_summarize_context_branch', agent._summarize_context_branch, {
+builder.add_conditional_edges('goto_has_pending_messages_branch', agent._has_pending_messages_branch, {
+    True: 'call_llm',
+    False: 'goto_summarize_context_branch'
+})
+builder.add_conditional_edges('execute_tool_calls', agent._has_pending_messages_branch, {
+    True: 'call_llm',
+    False: 'goto_summarize_context_branch'
+})
+builder.add_conditional_edges('goto_summarize_context_branch', agent._summarize_context_branch, {
     True: 'summarize_context',
     False: END
 })

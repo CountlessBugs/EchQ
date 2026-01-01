@@ -9,8 +9,10 @@ from langchain.chat_models import init_chat_model
 from langchain.chat_models.base import BaseChatModel
 from langchain_core.messages import BaseMessage, SystemMessage, HumanMessage, AIMessage, RemoveMessage
 from langgraph.graph.message import REMOVE_ALL_MESSAGES
+from langchain_core.tools import BaseTool
+from langgraph.prebuilt import ToolNode
 
-from .agent_state import AgentState
+from .agent_state import AgentState, CLEAR
 
 # 加载环境变量
 load_dotenv()
@@ -26,6 +28,9 @@ class Agent:
         self._graph: Optional[CompiledStateGraph] = None
         self._config = {'configurable': {'thread_id': '0'}}
         self._llm: Optional[BaseChatModel] = None
+        self._llm_with_tools: Optional[BaseChatModel] = None
+        self._tools: dict[str, BaseTool] = {}
+        self.tool_node: Optional[ToolNode] = None
         
         self.llm_prompt: str = ''
         self.token_limit: int = 16000
@@ -60,7 +65,8 @@ class Agent:
         llm_prompt: str = '',
         token_limit: int = 16000,
         *,
-        workflow: Optional[CompiledStateGraph] = None
+        workflow: Optional[CompiledStateGraph] = None,
+        tools: Optional[list[BaseTool]] = None,
     ) -> None:
         """初始化智能体
         
@@ -68,6 +74,9 @@ class Agent:
             llm_model: 使用的LLM模型名称
             llm_temperature: LLM生成文本的温度参数
             llm_prompt: LLM系统提示词
+            token_limit: 对话的最大token限制
+            workflow: 自定义工作流图, 如果为 None 则使用默认工作流
+            tools: 智能体可用的工具列表
         """
         self.llm_prompt = llm_prompt
         self.token_limit = token_limit
@@ -76,6 +85,14 @@ class Agent:
         # TODO: 支持更多模型提供商
         self._llm = init_chat_model(llm_model, model_provider='openai', temperature=llm_temperature)
         
+        # 绑定工具
+        if tools is not None:
+            self._tools = {tool.name: tool for tool in tools}
+            self._llm_with_tools = self._llm.bind_tools(tools)
+            self.tool_node = ToolNode(tools)
+        else:
+            self._llm_with_tools = self._llm
+
         # 构建图
         self._graph = self._build_graph(workflow)
 
@@ -112,7 +129,7 @@ class Agent:
         
         try:
             input_data = {'messages': [HumanMessage(content=message)]}
-            
+
             # 执行图
             async for event in self._graph.astream_events(
                 input_data,
@@ -128,6 +145,20 @@ class Agent:
                     if getattr(chunk, 'content', None):
                         yield chunk
 
+                # 捕获工具执行结束事件
+                elif event['event'] == 'on_tool_end':
+                    await asyncio.sleep(0.05)  # 确保工具结果已写入状态
+                    state = self._graph.get_state(self._config)
+                    tool_results = state.values.get('tool_call_results', [])
+                    
+                    if tool_results:     
+                        # 返回工具调用结果
+                        for result in tool_results:
+                            yield result
+
+                        # 清空工具调用结果
+                        self._graph.update_state(self._config, {'tool_call_results': [CLEAR]})
+
         finally:
             self._is_busy = False
 
@@ -135,7 +166,7 @@ class Agent:
 
     @staticmethod
     async def process_chunks(chunks: AsyncIterator, delimiters: list[str] = ['\n']) -> AsyncIterator[str]:
-        """处理流式响应块,提取文本内容并按分割符分割
+        """处理流式响应块, 提取文本内容并按分割符分割, 工具调用结果保持不变
         
         Args:
             chunks: 流式响应块迭代器
@@ -146,6 +177,11 @@ class Agent:
         """
         buffer = ''
         async for chunk in chunks:
+            # 判断是否为工具调用结果, 如果是则直接 yield
+            if isinstance(chunk, dict) and 'tool_name' in chunk:
+                yield chunk
+                continue
+
             delta_content = chunk.content
             if delta_content:
                 buffer += delta_content
@@ -201,7 +237,7 @@ class Agent:
         message_ids_to_remove = state.get('message_ids_to_remove', [])
         messages_to_remove = [RemoveMessage(id=msg_id) for msg_id in message_ids_to_remove if msg_id in current_message_ids]
 
-        return { 'messages': messages_to_remove, 'message_ids_to_remove': ['__CLEAR__'] }
+        return { 'messages': messages_to_remove, 'message_ids_to_remove': [CLEAR] }
 
     def _has_pending_messages_branch(self, state: AgentState) -> bool:
         """检查智能体是否有待处理的消息

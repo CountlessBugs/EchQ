@@ -5,6 +5,7 @@ from datetime import datetime
 from langchain_core.messages import BaseMessage, SystemMessage, HumanMessage, AIMessage, RemoveMessage
 from langgraph.graph.message import REMOVE_ALL_MESSAGES
 
+
 # 只有在类型检查时才导入，运行时不导入，防止循环引用
 if TYPE_CHECKING:
     from ..agent import Agent
@@ -12,7 +13,12 @@ if TYPE_CHECKING:
 
 
 async def call_llm_node(self: Agent, state: AgentState) -> AgentState:
-    """调用 LLM 节点"""
+    """调用 LLM 节点
+    
+        调用绑定了工具的 LLM 来生成响应消息
+        该节点之后需添加工具节点来处理可能的工具调用
+
+    """
     if self._llm is None:
         raise ValueError('LLM 未初始化，请先调用 initialize 方法')
 
@@ -28,7 +34,7 @@ async def call_llm_node(self: Agent, state: AgentState) -> AgentState:
     time_message = SystemMessage(content=f'<current_time>{formatted_time}</current_time>')
 
     # 调用 LLM 生成响应
-    response = await self._llm.with_config(tags=['chat_response']).ainvoke(messages_for_llm + [time_message])
+    response = await self._llm_with_tools.with_config(tags=['chat_response']).ainvoke(messages_for_llm + [time_message])
     
     # 构建新增消息列表
     new_messages = list(self._pending_messages) + [response]

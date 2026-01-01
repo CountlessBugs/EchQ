@@ -9,10 +9,10 @@ import json
 from typing import Any, AsyncIterator
 
 from config.config import Config
-from agent.agent import agent
 from napcat.napcat import napcat_client, napcat_listener
 from napcat.message_formatter import NapcatMessage
-
+from agent.agent import agent
+from agent.tools.image_generation_tools import generate_image_tool
 
 # === 程序入口与主循环 ===
 
@@ -53,11 +53,13 @@ def initialize_components() -> None:
     4. Napcat WebSocket 监听器
     """
     # 初始化 Agent
+    tools = [generate_image_tool]
     agent.initialize(
         llm_model=Config.LLM_MODEL,
         llm_temperature=Config.LLM_TEMPERATURE,
         llm_prompt=Config.LLM_PROMPT,
-        token_limit=Config.AMEM_TOKEN_LIMIT
+        token_limit=Config.AMEM_TOKEN_LIMIT,
+        tools=tools
     )
     
     # 初始化 Napcat HTTP 客户端
@@ -66,7 +68,7 @@ def initialize_components() -> None:
     # 初始化 Napcat WebSocket 监听器
     napcat_listener.initialize(
         ws_url=Config.NAPCAT_WS_URL,
-        on_message_callback=reply_to_napcat_message,
+        on_message_callback=handle_napcat_message,
         filter_heartbeat=Config.FILTER_WS_HEARTBEAT,
         print_messages=Config.PRINT_WS_MESSAGES
     )
@@ -83,7 +85,7 @@ async def cleanup() -> None:
 
 # === 消息处理 ===
 
-async def reply_to_napcat_message(message: str) -> None:
+async def handle_napcat_message(message: str) -> None:
     """处理 Napcat 消息并生成回复
     
     根据消息类型 (私聊/群聊) 调用 Agent 处理消息,
@@ -106,14 +108,14 @@ async def reply_to_napcat_message(message: str) -> None:
     post_type: str = message_data.get('post_type', '')
     
     if post_type == 'message':
-        await _handle_message(message_data)
+        await _reply_to_message(message_data)
     elif post_type == 'meta_event':
         _handle_meta_event(message_data)
     elif post_type == 'notice':
         _handle_notice(message_data)
 
-async def _handle_message(message_data: dict[str, Any]) -> None:
-    """处理收到的消息
+async def _reply_to_message(message_data: dict[str, Any]) -> None:
+    """回复 Napcat 收到的消息
     
     Args:
         message_data: 消息数据字典
@@ -134,7 +136,10 @@ async def _handle_message(message_data: dict[str, Any]) -> None:
         
         # 逐块发送回复
         async for chunk in response_stream:
-            await _send_reply(chunk, message)
+            if isinstance(chunk, dict):
+                await _send_reply(chunk.get('type', 'text'), chunk.get('content', ''), message)
+            elif isinstance(chunk, str):
+                await _send_reply('text', chunk, message)
 
 async def _handle_command(message: NapcatMessage) -> None:
     """处理收到的指令消息
@@ -174,23 +179,25 @@ async def _handle_command(message: NapcatMessage) -> None:
             command_echo = '🤔 未知指令, 发送 /help 获取帮助'
     
     if command_echo:
-        await _send_reply(command_echo, message)
+        await _send_reply('text', command_echo, message)
 
-async def _send_reply(content: str, message: NapcatMessage) -> None:
+async def _send_reply(type: str, content: str, message: NapcatMessage) -> None:
     """根据消息类型发送回复
     
     Args:
         content: 要发送的内容
         message: 原始消息对象
     """
+    message_list = []
+    if type == 'text':
+        message_list = [{'type': 'text', 'data': {'text': content}}]
+    elif type in ['image', 'record', 'file']:
+        message_list = [{'type': type, 'data': {'file': content}}]
+
     if message.message_type == 'private':
-        await napcat_client.send_text_message(content, message.sender_id)
+        await napcat_client.send_message(message_list, message.sender_id, is_group=False)
     elif message.message_type == 'group':
-        await napcat_client.send_text_message(
-            content,
-            message.group_id,
-            is_group=True
-        )
+        await napcat_client.send_message(message_list, message.group_id, is_group=True)
 
 # === 其他事件处理 ===
 

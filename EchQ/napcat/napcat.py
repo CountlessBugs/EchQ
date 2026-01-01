@@ -94,6 +94,25 @@ class NapcatClient:
         message_list = [{'type': 'text', 'data': {'text': message}}]
         return await self.send_message(message_list, receiver, is_group)
 
+    async def send_image_message(
+        self,
+        file_path: str,
+        receiver: str,
+        is_group: bool = False
+    ) -> dict[str, Any]:
+        """发送QQ图片消息
+        
+        Args:
+            file_path: 图片文件路径(本地或网络路径, 格式为 file:// 或 http:// )
+            receiver: 消息接收者的QQ号或群号
+            is_group: 消息接收者是否为群聊, 默认为False
+        
+        Returns:
+            Napcat API的响应结果字典
+        """
+        message_list = [{'type': 'image', 'data': {'file': file_path}}]
+        return await self.send_message(message_list, receiver, is_group)
+
     async def send_record_message(
         self,
         file_path: str,
