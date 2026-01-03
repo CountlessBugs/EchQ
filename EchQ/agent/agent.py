@@ -243,6 +243,8 @@ class Agent:
     # 出口
     def _exit_node(self, state: AgentState) -> AgentState:
         """出口节点，完成消息替换"""
+        print("Agent 调用完成")
+        
         # 移除待移除消息
         current_message_ids = {m.id for m in state.get("messages", []) if m.id}
         message_ids_to_remove = state.get("message_ids_to_remove", [])
@@ -261,4 +263,4 @@ class Agent:
 
 agent = Agent()
 
-__all__ = ["agent", "Agent", "AgentState"]
+__all__ = ["agent", "Agent"]

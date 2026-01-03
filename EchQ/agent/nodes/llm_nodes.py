@@ -22,9 +22,12 @@ async def call_llm_node(self: Agent, state: AgentState) -> AgentState:
     if self._llm is None:
         raise ValueError("LLM 未初始化，请先调用 initialize 方法")
 
+    new_messages = self._pending_messages.copy()
+    self._pending_messages.clear()
+
     # 如果有待处理的消息，则添加到上下文中
-    if self._pending_messages:
-        messages_for_llm = list(state["messages"]) + list(self._pending_messages)
+    if new_messages:
+        messages_for_llm = list(state["messages"]) + list(new_messages)
     else:
         messages_for_llm = state["messages"]
 
@@ -37,8 +40,7 @@ async def call_llm_node(self: Agent, state: AgentState) -> AgentState:
     response = await self._llm_with_tools.with_config(tags=["chat_response"]).ainvoke(messages_for_llm + [time_message])
     
     # 构建新增消息列表
-    new_messages = list(self._pending_messages) + [response]
-    self._pending_messages.clear()
+    new_messages.append(response)
 
     # 获取 token 使用量
     usage = getattr(response, "usage_metadata", {})
