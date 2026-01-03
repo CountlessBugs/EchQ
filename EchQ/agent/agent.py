@@ -106,14 +106,17 @@ class Agent:
 
     # === 对话方法 ===
 
-    async def send_message(self, message: str) -> AsyncIterator:
-        """发送一条消息到LLM并获取响应
+    async def invoke(
+        self,
+        message: str | list[str] | None = None
+    ) -> AsyncIterator:
+        """激活 Agent 并获取响应
         
         Args:
             message: 发送的消息
             
         Yields:
-            LLM 生成的响应消息片段
+            Agent 生成的响应消息片段
         """
         if self._graph is None:
             raise ValueError("智能体未初始化，请先调用 initialize 方法")
@@ -122,13 +125,21 @@ class Agent:
 
         if self._is_busy:
             # 如果正在回复，则将消息加入待处理队列
-            self._pending_messages.append(HumanMessage(content=message))
+            if message is not None:
+                if isinstance(message, list):
+                    self._pending_messages.extend([HumanMessage(content=msg) for msg in message])
+                else:
+                    self._pending_messages.append(HumanMessage(content=message))
             return
         
         self._is_busy = True
         
         try:
-            input_data = {"messages": [HumanMessage(content=message)]}
+            if message is not None:
+                if isinstance(message, list):
+                    input_data = {"messages": [HumanMessage(content=msg) for msg in message]}
+                else:
+                    input_data = {"messages": [HumanMessage(content=message)]}
 
             # 执行图
             async for event in self._graph.astream_events(

@@ -133,7 +133,7 @@ async def _reply_to_message(message_data: dict[str, Any]) -> None:
         print(f"📨 收到消息: {message.message_text}")
         
         # 发送消息给 Agent 并获取回复流
-        chunks: AsyncIterator[str] = agent.send_message(message.message_text)
+        chunks: AsyncIterator[str] = agent.invoke(message.message_text)
         response_stream: AsyncIterator[str] = agent.process_chunks(chunks)
         
         # 逐块发送回复
