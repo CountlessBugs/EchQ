@@ -54,7 +54,7 @@ def example_with_state_tool(
     last_message = state["messages"][-1]
     # 找到当前工具对应的 ID
     current_tool_call = next(
-        (tc for tc in last_message.tool_calls if tc["name"] == "generate_image"),
+        (tc for tc in last_message.tool_calls if tc["name"] == "example"),
         None
     )
     # 如果无法获取对应的 tool_call_id, 则返回错误信息

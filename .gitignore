@@ -9,6 +9,10 @@ EchQ/config/config.py
 EchQ/config/prompt.txt
 .env
 
+# Resources
+resources/sounds/*
+!resources/sounds/put_sounds_here
+
 # IDE
 .vscode/
 .VSCodeCounter/
