@@ -10,6 +10,9 @@ from ..agent_state import ToolCallResult
 from config.paths import Paths
 
 
+# TODO: 根据本地文件列表自动调整 Schema
+# TODO: 从网站获取音效文件来播放
+# 当前需要在提示词中说明可用的音效文件名
 @tool("play_sound", parse_docstring=True)
 def play_sound_tool(
     state: Annotated[dict, InjectedState],
@@ -41,7 +44,7 @@ def play_sound_tool(
         {
             "tool_name": "play_sound",
             "id": f"{tid}",
-            "type": "file",
+            "type": "record",
             "content": str(sound_file)
         }
     ]
