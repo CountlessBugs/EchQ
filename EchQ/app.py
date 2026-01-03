@@ -13,6 +13,7 @@ from napcat.napcat import napcat_client, napcat_listener
 from napcat.message_formatter import NapcatMessage
 from agent.agent import agent
 from agent.tools.image_generation_tools import generate_image_tool
+from agent.tools.sound_tools import play_sound_tool
 
 # === 程序入口与主循环 ===
 
@@ -53,7 +54,8 @@ def initialize_components() -> None:
     4. Napcat WebSocket 监听器
     """
     # 初始化 Agent
-    tools = [generate_image_tool]
+    # 在此处添加所需的工具
+    tools = [generate_image_tool, play_sound_tool]
     agent.initialize(
         llm_model=Config.LLM_MODEL,
         llm_temperature=Config.LLM_TEMPERATURE,

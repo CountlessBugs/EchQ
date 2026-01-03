@@ -7,7 +7,7 @@ from langgraph.types import Command
 from langchain_core.messages import ToolMessage
 
 from ..agent_state import ToolCallResult
-from EchQ.config.paths import Paths
+from config.paths import Paths
 
 
 @tool("play_sound", parse_docstring=True)
