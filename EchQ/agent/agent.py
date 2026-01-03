@@ -1,5 +1,5 @@
 import asyncio
-from typing import Optional, Any, AsyncIterator
+from typing import Optional, Any, Literal, AsyncIterator
 
 from dotenv import load_dotenv
 from langgraph.graph import StateGraph, START, END
@@ -108,11 +108,13 @@ class Agent:
 
     async def invoke(
         self,
+        invoke_type: Literal["scheduled", "user_message"],
         message: str | list[str] | None = None
     ) -> AsyncIterator:
         """激活 Agent 并获取响应
         
         Args:
+            invoke_type: 调用类型, 可选值为 "scheduled" 或 "user_message"
             message: 发送的消息
             
         Yields:
@@ -135,11 +137,14 @@ class Agent:
         self._is_busy = True
         
         try:
+            # 准备输入数据
+            input_data = {"invoke_type": invoke_type}
+
             if message is not None:
                 if isinstance(message, list):
-                    input_data = {"messages": [HumanMessage(content=msg) for msg in message]}
+                    input_data["messages"] = [HumanMessage(content=msg) for msg in message]
                 else:
-                    input_data = {"messages": [HumanMessage(content=message)]}
+                    input_data["messages"] = [HumanMessage(content=message)]
 
             # 执行图
             async for event in self._graph.astream_events(
@@ -250,15 +255,7 @@ class Agent:
         message_ids_to_remove = state.get("message_ids_to_remove", [])
         messages_to_remove = [RemoveMessage(id=msg_id) for msg_id in message_ids_to_remove if msg_id in current_message_ids]
 
-        return { "messages": messages_to_remove, "message_ids_to_remove": [CLEAR] }
-
-    def _has_pending_messages_branch(self, state: AgentState) -> bool:
-        """检查智能体是否有待处理的消息
-
-        Returns:
-            如果有待处理的消息则返回 True, 否则返回 False
-        """
-        return len(self._pending_messages) > 0
+        return { "invoke_type": "none", "messages": messages_to_remove, "message_ids_to_remove": [CLEAR] }
 
 
 agent = Agent()

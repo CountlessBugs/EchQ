@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import TypedDict, Annotated, Optional
+from typing import TypedDict, Annotated, Optional, Literal
 
 from langchain_core.messages import BaseMessage
 from langgraph.graph.message import add_messages
@@ -8,12 +8,17 @@ from langgraph.graph.message import add_messages
 class AgentState(TypedDict):
     """Agent 状态
 
-        用于在 StateGraph 中存储智能体的状态、
+        用于在 StateGraph 中存储智能体的状态
     
     Attributes:
+        invoke_type: 调用类型, 可选值: "scheduled" (定时调用), "user_message" (用户消息)
         messages: 对话消息列表
+        message_ids_to_remove: 待移除的消息 ID 列表
         token_usage: 上一次对话的 token 使用量
+        tool_call_results: 工具调用结果列表
     """
+    invoke_type : Literal["none", "scheduled", "user_message"]
+
     messages: Annotated[list[BaseMessage], add_messages]
     # 由于子图无法直接移除父图的消息，故需要层层向上传递一个待移除的消息 ID 列表
     # 每一层都需要按照这个列表移除对应的消息，最终在根图中清空该列表

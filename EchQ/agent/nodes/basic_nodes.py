@@ -19,6 +19,20 @@ def cleanup_node(self: Agent, state: AgentState) -> AgentState:
     return { "messages": messages_to_remove }
 
 
+def invoke_type_branch(self: Agent, state: AgentState) -> str:
+    """根据调用类型分支
+
+    Returns:
+        分支名称
+    """
+    invoke_type = state.get("invoke_type", "none")
+    if invoke_type == "scheduled":
+        return "scheduled"
+    elif invoke_type == "user_message":
+        return "user_message"
+    else:
+        return "none"
+    
 def has_tool_calls_branch(self: Agent, state: AgentState) -> bool:
     """检查智能体是否有待处理的工具调用, 并打印日志
 
@@ -33,5 +47,13 @@ def has_tool_calls_branch(self: Agent, state: AgentState) -> bool:
         print(f"调用工具: {last_msg.tool_calls}")
     return len(last_msg.tool_calls) > 0
 
+def has_pending_messages_branch(self: Agent, state: AgentState) -> bool:
+    """检查智能体是否有待处理的消息
 
-__all__ = ["cleanup_node", "has_tool_calls_branch"]
+    Returns:
+        如果有待处理的消息则返回 True, 否则返回 False
+    """
+    return len(self._pending_messages) > 0
+
+
+__all__ = ["cleanup_node", "invoke_type_branch", "has_tool_calls_branch", "has_pending_messages_branch"]

@@ -4,7 +4,7 @@ from langgraph.graph import StateGraph, START, END
 
 from ..agent import agent, Agent
 from ..agent_state import AgentState
-from ..nodes.basic_nodes import has_tool_calls_branch
+from ..nodes.basic_nodes import invoke_type_branch, has_tool_calls_branch, has_pending_messages_branch
 from ..nodes.llm_nodes import call_llm_node, summarize_context_node, summarize_context_branch
 
 
@@ -15,7 +15,9 @@ NODES = {
 }
 
 BRANCHES = {
+    "invoke_type": invoke_type_branch,
     "has_tool_calls": has_tool_calls_branch,
+    "has_pending_messages": has_pending_messages_branch,
     "summarize_context": summarize_context_branch,
 }
 
@@ -52,7 +54,11 @@ builder.add_node("goto_has_pending_messages_branch", lambda state: state)
 builder.add_node("goto_summarize_context_branch", lambda state: state)
 
 # 添加边
-builder.add_edge(START, "call_llm")
+builder.add_conditional_edges(START, agent._invoke_type_branch, {
+    "scheduled": "call_llm",
+    "user_message": "call_llm",
+    "none": END
+})
 builder.add_conditional_edges("call_llm", agent._has_tool_calls_branch, {
     True: "execute_tool_calls",
     False: "goto_has_pending_messages_branch"
