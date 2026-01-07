@@ -14,6 +14,7 @@ class NapcatClient:
     def __init__(self) -> None:
         """初始化NapcatClient实例"""
         self._client: Optional[httpx.AsyncClient] = None
+        self._client_sync: Optional[httpx.Client] = None
         self._base_url: str = ""
 
     # === 初始化方法 ===
@@ -27,6 +28,12 @@ class NapcatClient:
         self._base_url = base_url.rstrip("/")
 
         self._client = httpx.AsyncClient(
+            base_url=self._base_url, 
+            timeout=15.0,
+            headers={"Content-Type": "application/json"}
+        )
+
+        self._client_sync = httpx.Client(
             base_url=self._base_url, 
             timeout=15.0,
             headers={"Content-Type": "application/json"}
@@ -73,6 +80,60 @@ class NapcatClient:
             return response.json()
         except Exception as e:
             print(f"❌ Napcat 发送失败: {e}")
+            return {"status": "failed", "error": str(e)}
+
+    # === 获取消息方法 ===
+
+    async def get_message(self, message_id: str) -> dict[str, Any]:
+        """获取指定ID的消息详情
+        
+        Args:
+            message_id: 要获取的消息ID
+        
+        Returns:
+            消息详情字典
+        """
+        if not self._client:
+            raise RuntimeError("NapcatClient 未初始化，请先调用 initialize()")
+        
+        try:
+            payload = {"message_id": message_id}
+            response = await self._client.post("/get_msg", json=payload)
+            response.raise_for_status()
+            return response.json()
+        except httpx.HTTPStatusError as e:
+            # 捕获 HTTP 错误
+            error_msg = f"HTTP错误: {e.response.status_code} - {e.response.text}"
+            print(f"❌ 获取消息失败: {error_msg}")
+            return {"status": "failed", "error": error_msg}
+        except Exception as e:
+            print(f"❌ 获取消息失败: {e}")
+            return {"status": "failed", "error": str(e)}
+
+    def get_message_sync(self, message_id: str) -> dict[str, Any]:
+        """同步获取指定ID的消息详情
+        
+        Args:
+            message_id: 要获取的消息ID
+        
+        Returns:
+            消息详情字典
+        """
+        if not self._client_sync:
+            raise RuntimeError("NapcatClient 未初始化，请先调用 initialize()")
+        
+        try:
+            payload = {"message_id": message_id}
+            response = self._client_sync.post("/get_msg", json=payload)
+            response.raise_for_status()
+            return response.json().get("data", {})
+        except httpx.HTTPStatusError as e:
+            # 捕获 HTTP 错误
+            error_msg = f"HTTP错误: {e.response.status_code} - {e.response.text}"
+            print(f"❌ 获取消息失败: {error_msg}")
+            return {"status": "failed", "error": error_msg}
+        except Exception as e:
+            print(f"❌ 获取消息失败: {e}")
             return {"status": "failed", "error": str(e)}
 
 

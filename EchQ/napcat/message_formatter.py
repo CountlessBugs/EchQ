@@ -3,6 +3,7 @@
 import json
 from typing import Any, Optional, Literal
 
+from .napcat import napcat_client
 
 class NapcatMessage:
     """Napcat 消息数据类
@@ -11,6 +12,7 @@ class NapcatMessage:
 
     Args:
         message_data (dict): 原始Napcat消息数据字典
+        extract_reply (bool): 是否提取回复消息内容
 
     Args:
         message_data: 原始 Napcat 消息数据字典
@@ -29,8 +31,9 @@ class NapcatMessage:
         command_name (Optional[str]): 指令名称 (如果是指令消息)
         command_args (Optional[list[str]]): 指令参数列表 (如果是指令消息)
     """
-    def __init__(self, message_data: dict[str, Any]) -> None:
+    def __init__(self, message_data: dict[str, Any], /, *, extract_reply: bool = True) -> None:
         self._message_data: dict[str, Any] = message_data
+        self._extract_reply: bool = extract_reply
         self._message_type: Optional[str] = None
         self._raw_message: Optional[str] = None
         self._message_text: Optional[str] = None
@@ -82,9 +85,9 @@ class NapcatMessage:
         """
         if self._message_text is None:
             if self.message_type == "private":
-                self._message_text = f"[private] {self.sender_nick}: {self.text_content}"
+                self._message_text = f"<sender>[private] {self.sender_nick}</sender> {self.text_content}"
             elif self.message_type == "group":
-                self._message_text = f"[group] {self.group_name} {self.sender_nick}: {self.text_content}"
+                self._message_text = f"<sender>[group] {self.group_name} {self.sender_nick}</sender> {self.text_content}"
             else:
                 self._message_text = self.text_content
         
@@ -110,6 +113,27 @@ class NapcatMessage:
                     # 文本消息
                         text = item.get("data", {}).get("text", "")
                         text_parts.append(text)
+                
+                    # 引用消息
+                    case "reply":
+                        if not self._extract_reply:
+                            continue
+
+                        reply_msg_id = item.get("data", {}).get("id", "")
+                        if reply_msg_id:
+                            # 获取引用消息详情
+                            reply_message = napcat_client.get_message_sync(reply_msg_id)
+                            formatted_reply = NapcatMessage(reply_message, extract_reply=False)
+                            reply_user_nick = formatted_reply.sender_nick
+                            reply_text = formatted_reply.text_content
+
+                            # 截断过长的引用内容
+                            quote_max_len = 15
+                            truncated = reply_text[:quote_max_len] + "..." if len(reply_text) > quote_max_len else reply_text
+                            # 消去引用消息中的换行符
+                            truncated = truncated.replace("\n", " ")
+
+                            text_parts.append(f"<reply>Replying to @{reply_user_nick}: {truncated}</reply>\n")
 
                     # 表情消息
                     case "face":
