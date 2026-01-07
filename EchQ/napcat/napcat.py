@@ -75,63 +75,6 @@ class NapcatClient:
             print(f"❌ Napcat 发送失败: {e}")
             return {"status": "failed", "error": str(e)}
 
-    async def send_text_message(
-        self,
-        message: str,
-        receiver: str,
-        is_group: bool = False
-    ) -> dict[str, Any]:
-        """发送QQ文本消息
-        
-        Args:
-            message: 要发送的文本消息内容
-            receiver: 消息接收者的QQ号或群号
-            is_group: 消息接收者是否为群聊, 默认为False
-        
-        Returns:
-            Napcat API的响应结果字典
-        """
-        message_list = [{"type": "text", "data": {"text": message}}]
-        return await self.send_message(message_list, receiver, is_group)
-
-    async def send_image_message(
-        self,
-        file_path: str,
-        receiver: str,
-        is_group: bool = False
-    ) -> dict[str, Any]:
-        """发送QQ图片消息
-        
-        Args:
-            file_path: 图片文件路径(本地或网络路径, 格式为 file:// 或 http:// )
-            receiver: 消息接收者的QQ号或群号
-            is_group: 消息接收者是否为群聊, 默认为False
-        
-        Returns:
-            Napcat API的响应结果字典
-        """
-        message_list = [{"type": "image", "data": {"file": file_path}}]
-        return await self.send_message(message_list, receiver, is_group)
-
-    async def send_record_message(
-        self,
-        file_path: str,
-        receiver: str,
-        is_group: bool = False
-    ) -> dict[str, Any]:
-        """发送QQ语音消息
-        
-        Args:
-            file_path: 语音文件路径(本地或网络路径, 格式为 file:// 或 http:// )
-            receiver: 消息接收者的QQ号或群号
-            is_group: 消息接收者是否为群聊, 默认为False
-        
-        Returns:
-            Napcat API的响应结果字典
-        """
-        message_list = [{"type": "record", "data": {"file": file_path}}]
-        return await self.send_message(message_list, receiver, is_group)
-
 
 class NapcatListener:
     """Napcat WebSocket 监听器类
