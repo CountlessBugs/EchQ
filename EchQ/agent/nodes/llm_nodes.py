@@ -72,7 +72,7 @@ async def summarize_context_node(self: Agent, state: AgentState) -> AgentState:
     # 使用较低的温度获取总结
     response = await self._llm.with_config(tags=["summary"]).ainvoke(messages, temperature=0.3)
     summary = response.content
-    usage = getattr(response, "usage_metadata", {})
+    usage = getattr(response, "usage_metadata", {}) or {}
     token_usage = usage.get("completion_tokens", 0)
 
     # 构建待移除的消息 ID 列表

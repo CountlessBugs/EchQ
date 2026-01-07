@@ -103,21 +103,24 @@ class NapcatMessage:
             text_parts: list[str] = []
             content_array: list[dict[str, Any]] = self._message_data.get("message", [])
             for item in content_array:
-                item_type: str = item.get("type", "")
+                item_type = item.get("type", "")
 
-                if item_type == "text":
-                    text: str = item.get("data", {}).get("text", "")
-                    text_parts.append(text)
-                    
-                elif item_type == "face":
-                    face_text: Optional[str] = item.get("data", {}).get("raw", {}).get("faceText")
-                    if face_text is not None:
-                        text_parts.append(face_text)
-                    else:
-                        # 获取表情 ID
-                        face_id: str = item.get("data", {}).get("id", "")
-                        text_parts.append("/" + self._get_face_text_by_id(face_id))
-                    text_parts.append(" ")  # 表情用空格分隔
+                match item_type:
+                    case "text":
+                    # 文本消息
+                        text = item.get("data", {}).get("text", "")
+                        text_parts.append(text)
+
+                    # 表情消息
+                    case "face":
+                        face_text = item.get("data", {}).get("raw", {}).get("faceText")
+                        if face_text is not None:
+                            text_parts.append(face_text)
+                        else:
+                            # 获取表情 ID
+                            face_id = item.get("data", {}).get("id", "")
+                            text_parts.append("/" + self._get_face_text_by_id(face_id))
+                        text_parts.append(" ")  # 表情用空格分隔
 
             self._text_content = "".join(text_parts).strip()
 
@@ -205,8 +208,13 @@ class NapcatMessage:
         if self._is_command is None:
             # FIXME: 群聊中应该检查是否@了机器人自身
             if self._message_data.get("message", []):
-                first_item: dict[str, Any] = self._message_data["message"][0]
-                if first_item.get("type") == "face":
+                # 只有消息数组长度为 1 才视为指令
+                if len(self._message_data["message"]) != 1:
+                    self._is_command = False
+                    return self._is_command
+                
+                item: dict[str, Any] = self._message_data["message"][0]
+                if item.get("type") == "face":
                     self._is_command = False
                 else:
                     self._is_command = self.text_content.strip().startswith("/")
