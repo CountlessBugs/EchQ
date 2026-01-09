@@ -1,5 +1,5 @@
 import asyncio
-from typing import Optional, Any, Literal, AsyncIterator
+from typing import Optional, TypedDict, Any, Literal, AsyncIterator
 
 from dotenv import load_dotenv
 from langgraph.graph import StateGraph, START, END
@@ -18,6 +18,10 @@ from .agent_state import AgentState, CLEAR
 load_dotenv()
 
 
+class ImageMessage(TypedDict):
+    text: str
+    images: Optional[list[str]] # 图片 url
+
 class Agent:
     """智能体类
     
@@ -34,6 +38,7 @@ class Agent:
         
         self.llm_prompt: str = ""
         self.token_limit: int = 16000
+        self.vision_enabled: bool = False  # 是否启用视觉能力(上传图片)
 
         self._is_busy = False
         self._pending_messages: list[BaseMessage] = []
@@ -67,7 +72,8 @@ class Agent:
         *,
         workflow: Optional[CompiledStateGraph] = None,
         tools: Optional[list[BaseTool]] = None,
-        llm_model_provider: str = "openai"
+        llm_model_provider: str = "openai",
+        enable_vision: bool = False
     ) -> None:
         """初始化智能体
         
@@ -79,12 +85,13 @@ class Agent:
             workflow: 自定义工作流图, 如果为 None 则使用默认工作流
             tools: 智能体可用的工具列表
             llm_model_provider: LLM模型提供商名称
+            enable_vision: 是否启用视觉能力(图片输入)
         """
         self.llm_prompt = llm_prompt
         self.token_limit = token_limit
+        self.vision_enabled = enable_vision
 
         # 初始化 LLM
-        # TODO: 支持更多模型提供商
         self._llm = init_chat_model(llm_model, model_provider=llm_model_provider, temperature=llm_temperature)
         
         # 绑定工具
@@ -111,7 +118,7 @@ class Agent:
     async def invoke(
         self,
         invoke_type: Literal["scheduled", "user_message"],
-        message: str | list[str] | None = None
+        message: str | ImageMessage | list[str | ImageMessage] | None = None
     ) -> AsyncIterator:
         """激活 Agent 并获取响应
         
@@ -127,26 +134,39 @@ class Agent:
         if self._llm is None:
             raise ValueError("LLM 未初始化，请先调用 initialize 方法")
 
+        # 将消息统一转换为列表进行处理
+        if message is not None and not isinstance(message, list):
+            message = [message]
+
+        # 将消息加入待处理队列
+        if message is not None:
+            for msg in message:
+                if isinstance(msg, str):
+                    self._pending_messages.append(HumanMessage(content=msg))
+                elif isinstance(msg, dict):
+                    text = msg.get("text", "")
+                    images = msg.get("images", None)
+                    if images and self.vision_enabled:
+                        msg_content = [
+                            {"type": "text", "text": text},
+                            *[{"type": "image_url", "image_url": img} for img in images]
+                        ]
+                        self._pending_messages.append(HumanMessage(content=msg_content))
+                    else:
+                        self._pending_messages.append(HumanMessage(content=text))
+
+        # 防止并发调用
         if self._is_busy:
-            # 如果正在回复，则将消息加入待处理队列
-            if message is not None:
-                if isinstance(message, list):
-                    self._pending_messages.extend([HumanMessage(content=msg) for msg in message])
-                else:
-                    self._pending_messages.append(HumanMessage(content=message))
-            return
-        
+            return        
         self._is_busy = True
         
         try:
             # 准备输入数据
             input_data = {"invoke_type": invoke_type}
+            input_data["messages"] = self._pending_messages.copy()
 
-            if message is not None:
-                if isinstance(message, list):
-                    input_data["messages"] = [HumanMessage(content=msg) for msg in message]
-                else:
-                    input_data["messages"] = [HumanMessage(content=message)]
+            # 清空待处理消息队列
+            self._pending_messages.clear()
 
             # 执行图
             async for event in self._graph.astream_events(
@@ -262,4 +282,4 @@ class Agent:
 
 agent = Agent()
 
-__all__ = ["agent", "Agent"]
+__all__ = ["agent", "Agent", "ImageMessage"]

@@ -61,6 +61,7 @@ def initialize_components() -> None:
         llm_temperature=Config.LLM_TEMPERATURE,
         llm_prompt=Config.LLM_PROMPT,
         token_limit=Config.AMEM_TOKEN_LIMIT,
+        llm_model_provider=Config.LLM_MODEL_PROVIDER,
         tools=tools
     )
     
