@@ -67,6 +67,7 @@ class Agent:
         *,
         workflow: Optional[CompiledStateGraph] = None,
         tools: Optional[list[BaseTool]] = None,
+        llm_model_provider: str = "openai"
     ) -> None:
         """初始化智能体
         
@@ -77,13 +78,14 @@ class Agent:
             token_limit: 对话的最大token限制
             workflow: 自定义工作流图, 如果为 None 则使用默认工作流
             tools: 智能体可用的工具列表
+            llm_model_provider: LLM模型提供商名称
         """
         self.llm_prompt = llm_prompt
         self.token_limit = token_limit
 
         # 初始化 LLM
         # TODO: 支持更多模型提供商
-        self._llm = init_chat_model(llm_model, model_provider="openai", temperature=llm_temperature)
+        self._llm = init_chat_model(llm_model, model_provider=llm_model_provider, temperature=llm_temperature)
         
         # 绑定工具
         if tools is not None:

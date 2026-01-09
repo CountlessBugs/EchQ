@@ -86,7 +86,7 @@ OPENAI_API_KEY=your_openai_key
 ```
 
 适配的模型提供商详见 https://python.langchain.com/docs/integrations/chat/
-注：目前仅支持 OpenAI ，未来提供其他供应商支持
+如果需要使用其他模型提供商，请在 `app.py` 中修改 `Agent` 初始化函数中的 `llm_model_provider` 参数，同时需要安装相关依赖包
 
 #### 提示词设置
 
