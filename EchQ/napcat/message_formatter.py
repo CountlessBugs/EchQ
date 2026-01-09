@@ -21,6 +21,7 @@ class NapcatMessage:
         message_type (str): 消息类型 ("private" 或 "group")
         raw_message (str): 原始消息字符串
         message_text (str): 附带额外信息的消息纯文本字符串
+        url (str): 消息中图片或文件的的 URL (如果有)
         text_content (str): 仅消息内容的纯文本字符串
         sender_id (str): 发送者的用户 ID
         sender_nick (str): 发送者的昵称
@@ -34,14 +35,9 @@ class NapcatMessage:
     def __init__(self, message_data: dict[str, Any], /, *, extract_reply: bool = True) -> None:
         self._message_data: dict[str, Any] = message_data
         self._extract_reply: bool = extract_reply
-        self._message_type: Optional[str] = None
-        self._raw_message: Optional[str] = None
         self._message_text: Optional[str] = None
+        self._url: Optional[str] = None
         self._text_content: Optional[str] = None
-        self._sender_id: Optional[str] = None
-        self._sender_nick: Optional[str] = None
-        self._group_id: Optional[str] = None
-        self._group_name: Optional[str] = None
         self._reply_receiver_id: Optional[str] = None
         self._is_command: Optional[bool] = None
         self._command_name: Optional[str] = None
@@ -57,9 +53,7 @@ class NapcatMessage:
         Returns:
             消息类型字符串
         """
-        if self._message_type is None:
-            self._message_type = self._message_data.get("message_type", "")
-        return self._message_type
+        return self._message_data.get("message_type", "")
 
     @property
     def raw_message(self) -> str:
@@ -68,9 +62,7 @@ class NapcatMessage:
         Returns:
             原始消息字符串
         """
-        if self._raw_message is None:
-            self._raw_message = self._message_data.get("raw_message", "")
-        return self._raw_message
+        return self._message_data.get("raw_message", "")
 
     @property
     def message_text(self) -> str:
@@ -157,9 +149,7 @@ class NapcatMessage:
         Returns:
             用户 ID 字符串
         """
-        if self._sender_id is None:
-            self._sender_id = str(self._message_data.get("sender", {}).get("user_id", ""))
-        return self._sender_id
+        return str(self._message_data.get("sender", {}).get("user_id", ""))
 
     @property
     def sender_nick(self) -> str:
@@ -168,9 +158,7 @@ class NapcatMessage:
         Returns:
             用户昵称字符串
         """
-        if self._sender_nick is None:
-            self._sender_nick = self._message_data.get("sender", {}).get("nickname", "")
-        return self._sender_nick
+        return self._message_data.get("sender", {}).get("nickname", "")
     
     @property
     def group_id(self) -> str:
@@ -179,12 +167,10 @@ class NapcatMessage:
         Returns:
             群 ID 字符串, 非群消息返回空字符串
         """
-        if self._group_id is None:
-            if self.message_type == "group":
-                self._group_id = str(self._message_data.get("group_id", ""))
-            else:
-                self._group_id = ""
-        return self._group_id
+        if self.message_type == "group":
+            return str(self._message_data.get("group_id", ""))
+        else:
+            return ""
     
     @property
     def group_name(self) -> str:
@@ -193,12 +179,10 @@ class NapcatMessage:
         Returns:
             群名称字符串, 非群消息返回空字符串
         """
-        if self._group_name is None:
-            if self.message_type == "group":
-                self._group_name = self._message_data.get("group_name", "")
-            else:
-                self._group_name = ""
-        return self._group_name
+        if self.message_type == "group":
+            return self._message_data.get("group_name", "")
+        else:
+            return ""
 
     @property
     def reply_receiver_id(self) -> str:
