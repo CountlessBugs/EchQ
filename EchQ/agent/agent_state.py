@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import TypedDict, Annotated, Optional, Literal
+from typing import TypedDict, Annotated, Literal
 
 from langchain_core.messages import BaseMessage
 from langgraph.graph.message import add_messages

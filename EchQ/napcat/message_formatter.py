@@ -1,7 +1,7 @@
 """Napcat 消息格式化工具模块"""
 
 import json
-from typing import Any, Optional, Literal
+from typing import Any, Optional
 
 from .napcat import napcat_client
 

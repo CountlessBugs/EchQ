@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 import logging
 
-from langchain_core.messages import AIMessage, ToolMessage, RemoveMessage
+from langchain_core.messages import AIMessage, RemoveMessage
 
 # 只有在类型检查时才导入，运行时不导入，防止循环引用
 if TYPE_CHECKING:

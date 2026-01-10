@@ -6,7 +6,7 @@
 
 import asyncio
 import json
-from typing import Any, AsyncIterator
+from typing import Any
 import logging
 from logging.handlers import TimedRotatingFileHandler
 import os
