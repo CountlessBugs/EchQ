@@ -9,6 +9,7 @@ import json
 from typing import Any, AsyncIterator
 import logging
 from logging.handlers import TimedRotatingFileHandler
+import os
 
 from config.config import Config
 from napcat.napcat import napcat_client, napcat_listener
@@ -20,9 +21,15 @@ from utils.image_utils import image_utils
 
 
 # === 日志配置 ===
+# 确保日志目录存在
+if not os.path.exists("logs"):
+    os.makedirs("logs")
 
+# 配置根日志记录器
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
+if logger.hasHandlers():
+    logger.handlers.clear()
 
 # 日志文件按天轮转, 保留7天
 file_handler = TimedRotatingFileHandler(
