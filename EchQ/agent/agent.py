@@ -149,7 +149,7 @@ class Agent:
                     if images and self.vision_enabled:
                         msg_content = [
                             {"type": "text", "text": text},
-                            *[{"type": "image_url", "image_url": img} for img in images]
+                            *[{"type": "image_url", "image_url": {"url": img}} for img in images]
                         ]
                         self._pending_messages.append(HumanMessage(content=msg_content))
                     else:
@@ -162,8 +162,10 @@ class Agent:
         
         try:
             # 准备输入数据
-            input_data = {"invoke_type": invoke_type}
-            input_data["messages"] = self._pending_messages.copy()
+            input_data = {
+                "invoke_type": invoke_type,
+                "messages": self._pending_messages.copy()
+            }
 
             # 清空待处理消息队列
             self._pending_messages.clear()
@@ -180,8 +182,7 @@ class Agent:
                     and "chat_response" in event.get("tags", [])
                 ):
                     chunk = event["data"]["chunk"]
-                    if getattr(chunk, "content", None):
-                        yield chunk
+                    yield chunk
 
                 # 捕获工具执行结束事件
                 elif event["event"] == "on_tool_end":

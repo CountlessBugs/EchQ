@@ -7,6 +7,7 @@
 import asyncio
 import json
 from typing import Any, AsyncIterator
+import logging
 
 from config.config import Config
 from napcat.napcat import napcat_client, napcat_listener
@@ -14,6 +15,18 @@ from napcat.message_formatter import NapcatMessage
 from agent.agent import agent
 from agent.tools.image_generation_tools import generate_image_tool
 from agent.tools.sound_tools import play_sound_tool
+from utils.image_utils import image_utils
+
+# 配置日志记录
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler("echq.log"), # 保存到文件
+        logging.StreamHandler()          # 同时输出到控制台
+    ]
+)
+
 
 # === 程序入口与主循环 ===
 
@@ -62,6 +75,7 @@ def initialize_components() -> None:
         llm_prompt=Config.LLM_PROMPT,
         token_limit=Config.AMEM_TOKEN_LIMIT,
         llm_model_provider=Config.LLM_MODEL_PROVIDER,
+        enable_vision=Config.LLM_ENABLE_VISION,
         tools=tools
     )
     
@@ -83,7 +97,9 @@ def initialize_components() -> None:
 async def cleanup() -> None:
     """清理资源并关闭连接"""
     print("🧹 正在清理资源...")
+    await napcat_client.close()
     await napcat_listener.stop()
+    await image_utils.close()
     print("✓ 资源清理完成")
 
 # === 消息处理 ===
@@ -130,13 +146,31 @@ async def _reply_to_message(message_data: dict[str, Any]) -> None:
         # 处理指令
         await _handle_command(message)
     else:
-        # 打印收到的消息
-        print(f"📨 收到消息: {message.message_text}")
+        if message.content_type == "text":
+            # 打印收到的消息
+            print(f"📨 收到消息: {message.message_text}")
+            
+            # 发送消息给 Agent 并获取回复流
+            chunks = agent.invoke("user_message", message.message_text)
+        elif message.content_type == "image":
+            # 处理图片消息
+            b64 = await image_utils.get_remote_image_b64(message.url, 5, 256, 70)
+            if b64:
+                image_msg = {
+                        "text": message.message_text,
+                        "images": [b64]
+                    }
+                print(f"📨 收到图片消息: {message.message_text} [image]{message.url}")
+                
+                # 发送图片消息给 Agent 并获取回复流
+                chunks = agent.invoke("user_message", image_msg)
+            else:
+                print(f"📨 收到消息: {message.message_text}")
+
+                # 发送消息给 Agent 并获取回复流
+                chunks = agent.invoke("user_message", message.message_text)
         
-        # 发送消息给 Agent 并获取回复流
-        chunks: AsyncIterator[str] = agent.invoke("user_message", message.message_text)
-        response_stream: AsyncIterator[str] = agent.process_chunks(chunks)
-        
+        response_stream = agent.process_chunks(chunks)
         # 逐块发送回复
         async for chunk in response_stream:
             if isinstance(chunk, dict):
@@ -184,7 +218,7 @@ async def _handle_command(message: NapcatMessage) -> None:
     if command_echo:
         await _send_reply("text", command_echo, message)
 
-async def _send_reply(type: str, content: str, message: NapcatMessage) -> None:
+async def _send_reply(type: str, content: str, reply_message: NapcatMessage) -> None:
     """根据消息类型发送回复
     
     Args:
@@ -197,10 +231,10 @@ async def _send_reply(type: str, content: str, message: NapcatMessage) -> None:
     elif type in ["image", "record", "file"]:
         message_list = [{"type": type, "data": {"file": content}}]
 
-    if message.message_type == "private":
-        await napcat_client.send_message(message_list, message.sender_id, is_group=False)
-    elif message.message_type == "group":
-        await napcat_client.send_message(message_list, message.group_id, is_group=True)
+    if reply_message.message_type == "private":
+        await napcat_client.send_message(message_list, reply_message.sender_id, is_group=False)
+    elif reply_message.message_type == "group":
+        await napcat_client.send_message(message_list, reply_message.group_id, is_group=True)
 
 # === 其他事件处理 ===
 

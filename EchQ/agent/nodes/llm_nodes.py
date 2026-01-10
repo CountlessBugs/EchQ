@@ -38,7 +38,8 @@ async def call_llm_node(self: Agent, state: AgentState) -> AgentState:
 
     # 调用 LLM 生成响应
     response = await self._llm_with_tools.with_config(tags=["chat_response"]).ainvoke(messages_for_llm + [time_message])
-    
+    print(response)
+
     # 构建新增消息列表
     new_messages.append(response)
 

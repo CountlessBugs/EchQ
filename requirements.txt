@@ -3,5 +3,7 @@ langchain==1.2.0
 langchain_core==1.2.5
 langchain-openai==1.1.6
 langgraph==1.0.5
+pydantic==2.12.5
+Pillow==12.1.0
 python-dotenv==1.2.1
 websockets==15.0.1

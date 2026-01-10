@@ -3,6 +3,7 @@
 __pycache__/
 *.pyc
 data/
+*.log
 
 # Config
 EchQ/config/config.py

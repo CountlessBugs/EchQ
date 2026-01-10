@@ -18,11 +18,12 @@ class NapcatMessage:
         message_data: 原始 Napcat 消息数据字典
     
     Attributes:
-        message_type (str): 消息类型 ("private" 或 "group")
+        message_type (str): 消息类型 (private 或 group)
+        content_type (str): 内容类型 (包括 text, image, record, file. face, reply 等类型属于 text)
         raw_message (str): 原始消息字符串
         message_text (str): 附带额外信息的消息纯文本字符串
-        url (str): 消息中图片或文件的的 URL (如果有)
         text_content (str): 仅消息内容的纯文本字符串
+        url (str): 消息中图片或文件的的 URL (如果有)
         sender_id (str): 发送者的用户 ID
         sender_nick (str): 发送者的昵称
         group_id (str): 群 ID (如果是群消息)
@@ -36,7 +37,6 @@ class NapcatMessage:
         self._message_data: dict[str, Any] = message_data
         self._extract_reply: bool = extract_reply
         self._message_text: Optional[str] = None
-        self._url: Optional[str] = None
         self._text_content: Optional[str] = None
         self._reply_receiver_id: Optional[str] = None
         self._is_command: Optional[bool] = None
@@ -54,6 +54,28 @@ class NapcatMessage:
             消息类型字符串
         """
         return self._message_data.get("message_type", "")
+
+    @property
+    def content_type(self) -> str:
+        """内容类型
+        
+        包括 text, image, record, file. face, reply 等类型属于 text
+        
+        Returns:
+            内容类型字符串
+        """
+        content_array: list[dict[str, Any]] = self._message_data.get("message", [])
+        if content_array:
+            first_item_type = content_array[0].get("type", "")
+            match first_item_type:
+                case "text" | "face" | "reply":
+                    return "text"
+                case "image" | "record" | "file":
+                    return first_item_type
+                case _:
+                    return "unknown"
+        else:
+            return "unknown"
 
     @property
     def raw_message(self) -> str:
@@ -141,6 +163,21 @@ class NapcatMessage:
             self._text_content = "".join(text_parts).strip()
 
         return self._text_content
+
+    @property
+    def url(self) -> str:
+        """消息中图片或文件的的 URL (如果有)
+        
+        Returns:
+            URL 字符串
+        """
+        content_array: list[dict[str, Any]] = self._message_data.get("message", [])
+        for item in content_array:
+            item_type = item.get("type", "")
+            match item_type:
+                case "image" | "record" | "file":
+                    return item.get("data", {}).get("url", "")
+        return ""
 
     @property
     def sender_id(self) -> str:
