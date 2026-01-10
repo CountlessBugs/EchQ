@@ -94,7 +94,12 @@ class Agent:
         self.vision_enabled = enable_vision
 
         # 初始化 LLM
-        self._llm = init_chat_model(llm_model, model_provider=llm_model_provider, temperature=llm_temperature)
+        self._llm = init_chat_model(
+            llm_model,
+            model_provider=llm_model_provider,
+            temperature=llm_temperature,
+            stream_usage=True
+        )
         
         # 绑定工具
         if tools is not None:
