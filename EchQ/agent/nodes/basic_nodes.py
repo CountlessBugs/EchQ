@@ -1,5 +1,6 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
+import logging
 
 from langchain_core.messages import AIMessage, ToolMessage, RemoveMessage
 
@@ -7,6 +8,8 @@ from langchain_core.messages import AIMessage, ToolMessage, RemoveMessage
 if TYPE_CHECKING:
     from ..agent import Agent
     from ..agent_state import AgentState
+
+logger = logging.getLogger(__name__)
 
 
 def cleanup_node(self: Agent, state: AgentState) -> AgentState:
@@ -44,7 +47,7 @@ def has_tool_calls_branch(self: Agent, state: AgentState) -> bool:
     
     last_msg = state["messages"][-1]
     if last_msg.tool_calls:
-        print(f"调用工具: {last_msg.tool_calls}")
+        logger.info(f"调用工具: {last_msg.tool_calls}")
     return len(last_msg.tool_calls) > 0
 
 def has_pending_messages_branch(self: Agent, state: AgentState) -> bool:

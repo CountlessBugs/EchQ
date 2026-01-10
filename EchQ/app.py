@@ -8,6 +8,7 @@ import asyncio
 import json
 from typing import Any, AsyncIterator
 import logging
+from logging.handlers import TimedRotatingFileHandler
 
 from config.config import Config
 from napcat.napcat import napcat_client, napcat_listener
@@ -17,15 +18,36 @@ from agent.tools.image_generation_tools import generate_image_tool
 from agent.tools.sound_tools import play_sound_tool
 from utils.image_utils import image_utils
 
-# 配置日志记录
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler("echq.log"), # 保存到文件
-        logging.StreamHandler()          # 同时输出到控制台
-    ]
+
+# === 日志配置 ===
+
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+
+# 日志文件按天轮转, 保留7天
+file_handler = TimedRotatingFileHandler(
+    filename="logs/echq.log", 
+    when="midnight", 
+    interval=1, 
+    backupCount=7, 
+    encoding="utf-8"
 )
+
+# 日志文件格式包含时间, 名称, 级别, 消息. 时间精确到秒
+file_formatter = logging.Formatter(
+    fmt='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
+file_handler.setFormatter(file_formatter)
+
+# 控制台只显示消息本身
+console_handler = logging.StreamHandler()
+console_formatter = logging.Formatter('%(message)s') 
+console_handler.setFormatter(console_formatter)
+
+# 将处理器添加到 logger
+logger.addHandler(file_handler)
+logger.addHandler(console_handler)
 
 
 # === 程序入口与主循环 ===
@@ -49,10 +71,11 @@ async def main() -> None:
         await stop_event.wait()
 
     except Exception as e:
-        print(f"❌ 不好啦! 程序运行出错: {e}")
+        logger.error(f"程序运行出错: {e}")
     finally:
         # 资源清理
         await cleanup()
+        logger.info("程序已退出")
         print("Agent 睡着啦! 再见👋🤖")
 
 # === 初始化函数 ===
@@ -86,21 +109,20 @@ def initialize_components() -> None:
     napcat_listener.initialize(
         ws_url=Config.NAPCAT_WS_URL,
         on_message_callback=handle_napcat_message,
-        filter_heartbeat=Config.FILTER_WS_HEARTBEAT,
-        print_messages=Config.PRINT_WS_MESSAGES
+        filter_heartbeat=Config.FILTER_WS_HEARTBEAT
     )
     
-    print("✓ 所有组件初始化完成")
+    logger.info("所有组件初始化完成")
 
 # === 清理函数 ===
 
 async def cleanup() -> None:
     """清理资源并关闭连接"""
-    print("🧹 正在清理资源...")
+    logger.info("正在清理资源...")
     await napcat_client.close()
     await napcat_listener.stop()
     await image_utils.close()
-    print("✓ 资源清理完成")
+    logger.info("资源清理完成")
 
 # === 消息处理 ===
 
@@ -117,7 +139,7 @@ async def handle_napcat_message(message: str) -> None:
     try:
         message_data: dict[str, Any] = json.loads(message)
     except json.JSONDecodeError as e:
-        print(f"⚠️ 不太妙: 消息解析失败: {e}")
+        logger.warning(f"消息解析失败: {e}")
         return
     
     if not isinstance(message_data, dict):
@@ -142,12 +164,14 @@ async def _reply_to_message(message_data: dict[str, Any]) -> None:
     message = NapcatMessage(message_data)
     
     if Config.ENABLE_COMMANDS and message.is_command:
+        logger.info(f"收到指令: {message.text_content}")
         print(f"⚡ 收到指令: {message.text_content}")
         # 处理指令
         await _handle_command(message)
     else:
         if message.content_type == "text":
             # 打印收到的消息
+            logger.info(f"收到消息: {message.message_text}")
             print(f"📨 收到消息: {message.message_text}")
             
             # 发送消息给 Agent 并获取回复流
@@ -160,11 +184,13 @@ async def _reply_to_message(message_data: dict[str, Any]) -> None:
                         "text": message.message_text,
                         "images": [b64]
                     }
+                logger.info(f"收到图片消息: {message.message_text} [image]{message.url}")
                 print(f"📨 收到图片消息: {message.message_text} [image]{message.url}")
                 
                 # 发送图片消息给 Agent 并获取回复流
                 chunks = agent.invoke("user_message", image_msg)
             else:
+                logger.info(f"收到消息: {message.message_text}")
                 print(f"📨 收到消息: {message.message_text}")
 
                 # 发送消息给 Agent 并获取回复流

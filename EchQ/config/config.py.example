@@ -26,8 +26,6 @@ class Config:
     # ===控制台日志配置===
     # 是否过滤WebSocket心跳日志
     FILTER_WS_HEARTBEAT = True
-    # 是否打印WebSocket接收消息日志
-    PRINT_WS_MESSAGES = False
 
     def __new__(cls):
         # 禁止实例化

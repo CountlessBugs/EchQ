@@ -65,12 +65,12 @@ pip install -r requirements.txt
 ```python
 class Config:
     # LLM 配置
-    LLM_MODEL = 'gpt-4o'                       # 模型名称
+    LLM_MODEL = "gpt-4o"                       # 模型名称
     LLM_TEMPERATURE = 1.3                      # 温度参数
     
     # NapCat 配置
-    NAPCAT_HTTP_URL = 'http://localhost:3000'  # HTTP 接口地址
-    NAPCAT_WS_URL = 'ws://localhost:3001'      # WebSocket 地址
+    NAPCAT_HTTP_URL = "http://localhost:3000"  # HTTP 接口地址
+    NAPCAT_WS_URL = "ws://localhost:3001"      # WebSocket 地址
     
     # 其他配置项...
 ```

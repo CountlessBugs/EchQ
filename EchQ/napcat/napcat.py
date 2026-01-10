@@ -1,9 +1,12 @@
 import asyncio
 import json
 from typing import Any, Callable, Optional
+import logging
 
 import httpx
 import websockets
+
+logger = logging.getLogger(__name__)
 
 
 class NapcatClient:
@@ -39,11 +42,14 @@ class NapcatClient:
             headers={"Content-Type": "application/json"}
         )
 
+        logger.info(f"Napcat Client 已初始化, Base URL: {self._base_url}")
+
     async def close(self) -> None:
         """关闭客户端，释放资源"""
         if self._client:
             await self._client.aclose()
             self._client = None
+            logger.info("Napcat Client 已关闭")
 
     # === 发送消息方法 ===
 
@@ -79,7 +85,7 @@ class NapcatClient:
             response.raise_for_status()
             return response.json()
         except Exception as e:
-            print(f"❌ Napcat 发送失败: {e}")
+            logger.error(f"Napcat 发送消息失败: {e}")
             return {"status": "failed", "error": str(e)}
 
     # === 获取消息方法 ===
@@ -104,10 +110,10 @@ class NapcatClient:
         except httpx.HTTPStatusError as e:
             # 捕获 HTTP 错误
             error_msg = f"HTTP错误: {e.response.status_code} - {e.response.text}"
-            print(f"❌ 获取消息失败: {error_msg}")
+            logger.error(f"Napcat 获取消息失败: {error_msg}")
             return {"status": "failed", "error": error_msg}
         except Exception as e:
-            print(f"❌ 获取消息失败: {e}")
+            logger.error(f"Napcat 获取消息失败: {e}")
             return {"status": "failed", "error": str(e)}
 
     def get_message_sync(self, message_id: str) -> dict[str, Any]:
@@ -130,10 +136,10 @@ class NapcatClient:
         except httpx.HTTPStatusError as e:
             # 捕获 HTTP 错误
             error_msg = f"HTTP错误: {e.response.status_code} - {e.response.text}"
-            print(f"❌ 获取消息失败: {error_msg}")
+            logger.error(f"Napcat 获取消息失败: {error_msg}")
             return {"status": "failed", "error": error_msg}
         except Exception as e:
-            print(f"❌ 获取消息失败: {e}")
+            logger.error(f"Napcat 获取消息失败: {e}")
             return {"status": "failed", "error": str(e)}
 
 
@@ -152,7 +158,6 @@ class NapcatListener:
         self._ws_url: str = ""
         self.on_message_callback: Optional[Callable[[str], None]] = None
         self.filter_heartbeat: bool = True
-        self.print_messages: bool = False
         self._running: bool = False
         self._task: Optional[asyncio.Task] = None
 
@@ -162,8 +167,7 @@ class NapcatListener:
         self,
         ws_url: str,
         on_message_callback: Optional[Callable[[str], None]] = None,
-        filter_heartbeat: bool = True,
-        print_messages: bool = False
+        filter_heartbeat: bool = True
     ) -> None:
         """初始化Napcat监听器
         
@@ -176,7 +180,6 @@ class NapcatListener:
         self._ws_url = ws_url
         self.on_message_callback = on_message_callback
         self.filter_heartbeat = filter_heartbeat
-        self.print_messages = print_messages
         self._running = False
         self._task = None
 
@@ -185,17 +188,17 @@ class NapcatListener:
     async def start(self) -> None:
         """启动监听器"""
         if self._running:
-            print("Napcat监听器已在运行中")
+            logger.warning("Napcat监听器已在运行中")
             return
         
         self._task = asyncio.create_task(self._run())
         self._running = True
-        print("Napcat监听器已启动")
+        logger.info("Napcat监听器已启动")
 
     async def stop(self) -> None:
         """停止监听器"""
         if not self._running:
-            print("Napcat监听器未在运行中")
+            logger.warning("Napcat监听器未在运行中")
             return
         
         # 发送取消信号，_run 中的 await 处会抛出 CancelledError
@@ -205,7 +208,8 @@ class NapcatListener:
         except asyncio.CancelledError:
             pass
 
-        print("Napcat监听器已停止运行. Nap cat went for a nap~ 😸💤")
+        print("Nap cat went for a nap~ 😸💤")
+        logger.info("Napcat监听器已停止")
 
     # === 私有方法 ===
 
@@ -214,7 +218,7 @@ class NapcatListener:
         try:
             # 建立连接
             async with websockets.connect(self._ws_url) as ws:
-                print("✓ 已连接到Napcat WebSocket! 好耶!")
+                logger.info(f"已连接到Napcat WebSocket: {self._ws_url}")
                 
                 # 接收消息
                 async for message in ws:
@@ -222,16 +226,15 @@ class NapcatListener:
                     
         # 处理连接异常
         except ConnectionRefusedError:
-            print("❌ 不好啦! 连接被拒绝: NapCat WebSocket 服务未运行或端口不正确")
-            print(f"   请检查: {self._ws_url}")
+            logger.error(f"连接被拒绝: {self._ws_url}")
         except (asyncio.TimeoutError, OSError) as e:
-            print(f"❌ 不好啦! 连接超时或错误: {e}")
+            logger.error(f"连接超时或错误: {e}")
         except asyncio.CancelledError:
             # 任务被取消时的正常退出
-            print("Napcat Websocket已关闭")
+            logger.info("Napcat Websocket已关闭")
             raise
         except Exception as e:
-            print(f"❌ Napcat监听器运行时发生错误: {e}")
+            logger.error(f"Napcat监听器运行时发生错误: {e}")
         finally:
             self._running = False
 
@@ -250,8 +253,7 @@ class NapcatListener:
                 and message_data.get("meta_event_type") == "heartbeat"):
                 return
             
-            if self.print_messages:
-                print(f"Napcat 监听器收到消息: {message}")
+            logger.info(f"Napcat 监听器收到消息: {message}")
 
             if self.on_message_callback:
                 if self.on_message_callback:
@@ -261,9 +263,9 @@ class NapcatListener:
                     else:
                         self.on_message_callback(message)
         except json.JSONDecodeError:
-            print(f"消息解析失败: {message}")
+            logger.error(f"Napcat 监听器消息解析失败: {message}")
         except Exception as e:
-            print(f"处理消息时发生错误: {e}")
+            logger.error(f"Napcat 监听器处理消息时发生错误: {e}")
 
 
 # 全局Napcat客户端和监听器实例

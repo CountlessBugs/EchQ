@@ -1,5 +1,6 @@
 import asyncio
 from typing import Optional, TypedDict, Any, Literal, AsyncIterator
+import logging
 
 from dotenv import load_dotenv
 from langgraph.graph import StateGraph, START, END
@@ -16,6 +17,8 @@ from .agent_state import AgentState, CLEAR
 
 # 加载环境变量
 load_dotenv()
+
+logger = logging.getLogger(__name__)
 
 
 class ImageMessage(TypedDict):
@@ -271,7 +274,7 @@ class Agent:
     # 出口
     def _exit_node(self, state: AgentState) -> AgentState:
         """出口节点，完成消息替换"""
-        print("Agent 调用完成")
+        logger.info("Agent 调用完成")
         
         # 移除待移除消息
         current_message_ids = {m.id for m in state.get("messages", []) if m.id}
