@@ -206,7 +206,17 @@ async def _handle_command(message: NapcatMessage) -> None:
                     # 跳过第一条系统提示词
                     if msg.type == "system" and msg == agent.context[0]:
                         continue
-                    command_echo += f"\n[{msg.type}] {msg.content}"
+                    if isinstance(msg.content, list):
+                        command_echo += f"\n[{msg.type}] "
+                        for part in msg.content:
+                            if isinstance(part, dict) and part.get("type") == "text":
+                                command_echo += part.get("text", "")
+                            elif isinstance(part, dict) and part.get("type") == "image_url":
+                                command_echo += "[image]"
+                            else:
+                                command_echo += str(part)
+                    else:
+                        command_echo += f"\n[{msg.type}] {msg.content}"
         case "token":
             if message.command_args:
                 command_echo = "❌ 指令 /token 不接受任何参数"

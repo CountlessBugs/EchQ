@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from datetime import datetime
 
 from langchain_core.messages import BaseMessage, SystemMessage, HumanMessage, AIMessage, RemoveMessage
@@ -38,16 +38,20 @@ async def call_llm_node(self: Agent, state: AgentState) -> AgentState:
 
     # 调用 LLM 生成响应
     response = await self._llm_with_tools.with_config(tags=["chat_response"]).ainvoke(messages_for_llm + [time_message])
-    print(response)
 
     # 构建新增消息列表
     new_messages.append(response)
 
+    update_dict: dict[str, Any] = {
+        "messages": new_messages
+    }
+
     # 获取 token 使用量
     usage = getattr(response, "usage_metadata", {})
-    token_usage = usage.get("total_tokens", 0)
+    if usage:
+        update_dict["token_usage"] = usage.get("total_tokens", 0)
     
-    return {"messages": new_messages, "token_usage": token_usage}
+    return update_dict
 
 async def summarize_context_node(self: Agent, state: AgentState) -> AgentState:
     """总结上下文节点"""
