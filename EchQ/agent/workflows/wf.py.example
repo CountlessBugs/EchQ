@@ -42,8 +42,8 @@ for branch_name, func in BRANCHES.items():
 
 
 # 添加工具调用节点 (如果需要)
-if agent.tool_node is not None:
-    builder.add_node("execute_tool_calls", agent.tool_node)
+if agent._tool_node is not None:
+    builder.add_node("execute_tool_calls", agent._tool_node)
 else:
     # 如果没有工具则添加占位节点
     builder.add_node("execute_tool_calls", lambda state: state)

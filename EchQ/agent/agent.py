@@ -13,6 +13,7 @@ from langchain_core.tools import BaseTool
 from langgraph.prebuilt import ToolNode
 
 from .agent_state import AgentState, CLEAR
+from .agent_memory import AgentMemory
 
 # 加载环境变量
 load_dotenv()
@@ -36,7 +37,8 @@ class Agent:
         self._llm: Optional[BaseChatModel] = None
         self._llm_with_tools: Optional[BaseChatModel] = None
         self._tools: dict[str, BaseTool] = {}
-        self.tool_node: Optional[ToolNode] = None
+        self._tool_node: Optional[ToolNode] = None
+        self._memory: Optional[AgentMemory] = None
         
         self.llm_prompt: str = ""
         self.token_limit: int = 16000
@@ -75,6 +77,7 @@ class Agent:
         workflow: Optional[CompiledStateGraph] = None,
         tools: Optional[list[BaseTool]] = None,
         llm_model_provider: str = "openai",
+        embeddings_model: str = "text-embedding-3-small",
         enable_vision: bool = False
     ) -> None:
         """初始化智能体
@@ -87,6 +90,7 @@ class Agent:
             workflow: 自定义工作流图, 如果为 None 则使用默认工作流
             tools: 智能体可用的工具列表
             llm_model_provider: LLM模型提供商名称
+            embeddings_model: 记忆组件使用的 Embedding 模型名称
             enable_vision: 是否启用视觉能力(图片输入)
         """
         self.llm_prompt = llm_prompt
@@ -100,14 +104,19 @@ class Agent:
             temperature=llm_temperature,
             stream_usage=True
         )
-        
+
         # 绑定工具
         if tools is not None:
             self._tools = {tool.name: tool for tool in tools}
             self._llm_with_tools = self._llm.bind_tools(tools)
-            self.tool_node = ToolNode(tools)
+            self._tool_node = ToolNode(tools)
         else:
             self._llm_with_tools = self._llm
+
+        # 初始化记忆组件
+        self._memory = AgentMemory(
+            embeddings_model=embeddings_model
+        )
 
         # 构建图
         self._graph = self._build_graph(workflow)

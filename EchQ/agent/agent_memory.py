@@ -20,12 +20,7 @@ class AgentMemory:
     
     # === 初始化方法 ===
 
-    def __init__(self):
-        # 初始化 Embedding
-        self._embeddings: Optional[OpenAIEmbeddings] = None
-        self._vector_db: Optional[Chroma] = None
-
-    def initialize(
+    def __init__(
         self,
         embeddings_model: str = "text-embedding-3-small"
     ) -> None:
@@ -36,9 +31,11 @@ class AgentMemory:
         Args:
             embeddings_model: 使用的 Embedding 模型名称
         """
-        self._embeddings = OpenAIEmbeddings(model=embeddings_model)
+        # 初始化 Embeddings
+        self._embeddings: OpenAIEmbeddings = OpenAIEmbeddings(model=embeddings_model)
 
-        self._vector_db = Chroma(
+        # 初始化向量数据库
+        self._vector_db: Chroma = Chroma(
             collection_name="episodic_memory",
             embedding_function=self._embeddings,
             persist_directory=Paths.CHROMA_DB.as_posix()
@@ -59,11 +56,8 @@ class AgentMemory:
         Args:
             content: 记忆文本内容
             type: 记忆类型标签, 若为单个字符串则应用于所有内容, 若为列表则与内容一一对应
-            importance: 记忆重要性, 若为单个浮点数则应用于所有内容, 若为列表则与内容一一对应 
+            importance: 记忆重要性, 决定了记忆优先级和随时间衰减的速度, 若为单个浮点数则应用于所有内容, 若为列表则与内容一一对应 
         """
-        if self._vector_db is None:
-            raise ValueError("记忆组件未初始化，请先调用 initialize 方法")
-
         # content 统一包装成列表
         if not isinstance(content, list):
             content = [content]
@@ -85,7 +79,7 @@ class AgentMemory:
 
         docs = [Document(
             page_content=c,
-            metadata={"type": t, "timestamp": timestamp, "importance": imp},
+            metadata={"type": t, "timestamp": int(timestamp), "importance": imp},
             id=f"mem_{int(timestamp * 1000)}_{i}"
         ) for i, (c, t, imp) in enumerate(zip(content, type, importance))]
 
@@ -95,27 +89,39 @@ class AgentMemory:
         self,
         query: str,
         k: int = 5,
-        filter: Optional[dict] = None
-    ) -> list[str]:
+        filter: Optional[dict] = None,
+        score_threshold: float = 0.6
+    ) -> list[Document]:
         """检索与查询最相似的记忆片段
         
         Args:
             query: 查询文本
             k: 返回的相似记忆数量
             filter: 过滤条件
+            score_threshold: 相似度评分阈值, 仅返回评分高于该阈值的记忆
         
         Returns:
             相似记忆文本列表
-        """
-        if self._vector_db is None:
-            raise ValueError("记忆组件未初始化，请先调用 initialize 方法")
-        
+        """ 
         results = self._vector_db.similarity_search_with_score(
             query,
             k=k,
             filter=filter
         )
 
-        # TODO: 加入评分阈值过滤, 评分按时间加权等操作
+        # TODO: 加入评分按时间指数衰减等操作
 
-        return [doc.page_content for doc, _ in results]
+        # 寻找第一个未达到阈值的索引
+        cutoff_index = len(results)
+        for i, (_, score) in enumerate(results):
+            if score < score_threshold: # 相似度低于阈值，说明后续都不合格
+                cutoff_index = i
+                break
+
+        # 截断列表, 只保留 0 到 cutoff_index-1 的部分
+        results = results[:cutoff_index]
+
+        return [doc for doc, _ in results]
+
+
+__all__ = ["agent_memory"]

@@ -4,7 +4,7 @@ import logging
 
 from langchain_core.messages import AIMessage, RemoveMessage
 
-# 只有在类型检查时才导入，运行时不导入，防止循环引用
+# 防止循环引用
 if TYPE_CHECKING:
     from ..agent import Agent
     from ..agent_state import AgentState
