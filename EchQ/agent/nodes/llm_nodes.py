@@ -70,7 +70,7 @@ async def summarize_context_node(self: Agent, state: AgentState) -> AgentState:
             "Output the summary and NOTHING else. "
             "Use the nickname from the message prefix in place of \"user\", and replace \"assistant\" with \"you\"."
         )),
-        HumanMessage(content=f'Conversation: """\n{history_text}"""')
+        HumanMessage(content=f"<conversation>\n{history_text}\n</conversation>")
     ]
     
     # 使用较低的温度获取总结

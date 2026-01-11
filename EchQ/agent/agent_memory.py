@@ -83,6 +83,8 @@ class AgentMemory:
             id=f"mem_{int(timestamp * 1000)}_{i}"
         ) for i, (c, t, imp) in enumerate(zip(content, type, importance))]
 
+        logger.info(f"将 {len(docs)} 条记忆存储到向量数据库, 详情如下:\n{docs}")
+
         self._vector_db.add_documents(docs)
 
     def retrieve_similar_memories(
@@ -120,6 +122,8 @@ class AgentMemory:
 
         # 截断列表, 只保留 0 到 cutoff_index-1 的部分
         results = results[:cutoff_index]
+
+        logger.info(f"检索到 {len(results)} 条相似记忆, 详情如下:\n{results}")
 
         return [doc for doc, _ in results]
 
