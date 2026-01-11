@@ -1,0 +1,121 @@
+from typing import Optional
+import time
+import logging
+
+from langchain_chroma import Chroma
+from langchain_openai import OpenAIEmbeddings
+from langchain_core.documents import Document
+
+from EchQ.config.paths import Paths
+
+logger = logging.getLogger(__name__)
+
+
+class AgentMemory:
+    """Agent 记忆类
+
+    负责管理 Agent 的持久化记忆, 包括向量数据库和图数据库的存取操作等
+    向量数据库使用 Chroma 实现
+    """
+    
+    # === 初始化方法 ===
+
+    def __init__(self):
+        # 初始化 Embedding
+        self._embeddings: Optional[OpenAIEmbeddings] = None
+        self._vector_db: Optional[Chroma] = None
+
+    def initialize(
+        self,
+        embeddings_model: str = "text-embedding-3-small"
+    ) -> None:
+        """初始化记忆组件
+
+        Embedding 使用 OpenAIEmbeddings, OPENAI_API_KEY 需在环境变量中配置
+        
+        Args:
+            embeddings_model: 使用的 Embedding 模型名称
+        """
+        self._embeddings = OpenAIEmbeddings(model=embeddings_model)
+
+        self._vector_db = Chroma(
+            collection_name="episodic_memory",
+            embedding_function=self._embeddings,
+            persist_directory=Paths.CHROMA_DB.as_posix()
+        )
+
+    # === 基本记忆存取方法 ===
+
+    def store_memory(
+        self,
+        content: str | list[str],
+        type: str | list[str] = "default",
+        importance: float | list[float] = 1.0
+    ) -> None:
+        """存储记忆片段到向量数据库
+
+        此方法仅负责存储, 不提供要点提取功能, 需要提供处理好的记忆文本内容
+        
+        Args:
+            content: 记忆文本内容
+            type: 记忆类型标签, 若为单个字符串则应用于所有内容, 若为列表则与内容一一对应
+            importance: 记忆重要性, 若为单个浮点数则应用于所有内容, 若为列表则与内容一一对应 
+        """
+        if self._vector_db is None:
+            raise ValueError("记忆组件未初始化，请先调用 initialize 方法")
+
+        # content 统一包装成列表
+        if not isinstance(content, list):
+            content = [content]
+
+        # 检查 type 与 content 长度是否匹配
+        if isinstance(type, list):
+            if len(type) != len(content):
+                raise ValueError("当 type 为列表时, 其长度必须与 content 列表长度相同")
+        else:
+            type = [type] * len(content)
+        # 检查 importance 与 content 长度是否匹配
+        if isinstance(importance, list):
+            if len(importance) != len(content):
+                raise ValueError("当 importance 为列表时, 其长度必须与 content 列表长度相同")
+        else:
+            importance = [importance] * len(content)
+
+        timestamp = time.time()
+
+        docs = [Document(
+            page_content=c,
+            metadata={"type": t, "timestamp": timestamp, "importance": imp},
+            id=f"mem_{int(timestamp * 1000)}_{i}"
+        ) for i, (c, t, imp) in enumerate(zip(content, type, importance))]
+
+        self._vector_db.add_documents(docs)
+
+    def retrieve_similar_memories(
+        self,
+        query: str,
+        k: int = 5,
+        filter: Optional[dict] = None
+    ) -> list[str]:
+        """检索与查询最相似的记忆片段
+        
+        Args:
+            query: 查询文本
+            k: 返回的相似记忆数量
+            filter: 过滤条件
+        
+        Returns:
+            相似记忆文本列表
+        """
+        if self._vector_db is None:
+            raise ValueError("记忆组件未初始化，请先调用 initialize 方法")
+        
+        results = self._vector_db.similarity_search_with_score(
+            query,
+            k=k,
+            filter=filter
+        )
+
+        # TODO: 加入评分阈值过滤, 评分按时间加权等操作
+
+        return [doc.page_content for doc, _ in results]
