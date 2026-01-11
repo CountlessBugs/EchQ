@@ -6,12 +6,15 @@ from ..agent import agent, Agent
 from ..agent_state import AgentState
 from ..nodes.basic_nodes import invoke_type_branch, has_tool_calls_branch, has_pending_messages_branch
 from ..nodes.llm_nodes import call_llm_node, summarize_context_node, summarize_context_branch
+from ..nodes.memory_nodes import memorize_node, recall_node
 
 
 # 统一定义哪些函数需要挂载, 以及挂载到 agent 上的名字
 NODES = {
     "call_llm": call_llm_node,
     "summarize_context": summarize_context_node,
+    "memorize": memorize_node,
+    "recall": recall_node,
 }
 
 BRANCHES = {
@@ -56,9 +59,10 @@ builder.add_node("goto_summarize_context_branch", lambda state: state)
 # 添加边
 builder.add_conditional_edges(START, agent._invoke_type_branch, {
     "scheduled": "call_llm",
-    "user_message": "call_llm",
+    "user_message": "recall",
     "none": END
 })
+builder.add_edge("recall", "call_llm")
 builder.add_conditional_edges("call_llm", agent._has_tool_calls_branch, {
     True: "execute_tool_calls",
     False: "goto_has_pending_messages_branch"
@@ -75,7 +79,8 @@ builder.add_conditional_edges("goto_summarize_context_branch", agent._summarize_
     True: "summarize_context",
     False: END
 })
-builder.add_edge("summarize_context", END)
+builder.add_edge("summarize_context", "memorize")
+builder.add_edge("memorize", END)
 
 workflow = builder.compile()
 

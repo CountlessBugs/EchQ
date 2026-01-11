@@ -6,7 +6,7 @@ from langchain_chroma import Chroma
 from langchain_openai import OpenAIEmbeddings
 from langchain_core.documents import Document
 
-from EchQ.config.paths import Paths
+from config.paths import Paths
 
 logger = logging.getLogger(__name__)
 
@@ -115,6 +115,7 @@ class AgentMemory:
 
         # 寻找第一个未达到阈值的索引
         cutoff_index = len(results)
+        
         for i, (_, score) in enumerate(results):
             if score < score_threshold: # 相似度低于阈值，说明后续都不合格
                 cutoff_index = i
@@ -123,9 +124,12 @@ class AgentMemory:
         # 截断列表, 只保留 0 到 cutoff_index-1 的部分
         results = results[:cutoff_index]
 
-        logger.info(f"检索到 {len(results)} 条相似记忆, 详情如下:\n{results}")
+        if results:
+            logger.info(f"检索到 {len(results)} 条相似记忆, 详情如下:\n{results}")
+        else:
+            logger.info("未检索到符合条件的相似记忆")
 
         return [doc for doc, _ in results]
 
 
-__all__ = ["agent_memory"]
+__all__ = ["AgentMemory"]
