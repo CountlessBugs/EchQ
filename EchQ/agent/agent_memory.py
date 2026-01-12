@@ -77,6 +77,9 @@ class AgentMemory:
 
         timestamp = time.time()
 
+        # TODO: 通过 embeddings 检查内容是否已存在, 避免重复存储
+        # 若存在则提升重要性
+
         docs = [Document(
             page_content=c,
             metadata={"type": t, "timestamp": int(timestamp), "importance": imp},

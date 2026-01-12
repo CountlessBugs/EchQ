@@ -28,9 +28,10 @@ async def memorize_node(self: Agent, state: AgentState) -> AgentState:
         SystemMessage(content=(
             "你是一个记忆提取助手，"
             "你的任务是从用户与智能体的对话中提取出值得记忆的信息，以存储到长期记忆中。"
-            "请提取出对话中有价值或有趣的内容，并将其转述为简短的一句或一段话。"
+            "请提取出对话中有价值或有趣的内容，并将其转述为简短的一两句话。"
             "你需要以智能体的视角进行转述，以“我”代指智能体。"
             "你可以选取多条信息加入记忆，也可以不选取任何信息。"
+            "请保证提取的信息准确且有意义。日常对话中无特别信息时，可以不提取任何内容。"
         )),
         HumanMessage(content=f"<conversation>\n{last_message}\n</conversation>")
     ]
