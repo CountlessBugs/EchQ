@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
-from datetime import datetime
 
+from pydantic import BaseModel, Field
 from langchain_core.messages import SystemMessage, HumanMessage
 from langchain_core.documents import Document
 
@@ -13,6 +13,21 @@ if TYPE_CHECKING:
     from ..agent_state import AgentState
     from ..agent_memory import AgentMemory
 
+
+# === 记忆数据模型 ===
+
+class MemoryItem(BaseModel):
+    content: str = Field(description="需要记忆的内容, 一般为一两句话")
+    type: str = Field(description="内容的类型标签(英文), 例如 preference, fact, event 等")
+    importance: float = Field(description="重要程度评分，范围 0.0 到 1.0。重要性越高则越容易回忆起且遗忘越慢，重要性为 1.0 则永不遗忘", gt=0.0, le=1.0)
+    # TODO: 计划加入情感标签
+    # emotion: Literal["none", "happy", "sad", "angry", ...] = Field(description="与内容相关的情感标签")
+
+class Memories(BaseModel):
+    items: list[MemoryItem] = Field(description="需要记忆的内容列表")
+
+
+# === 记忆节点 ===
 
 async def memorize_node(self: Agent, state: AgentState) -> AgentState:
     """记忆存储节点
@@ -36,20 +51,20 @@ async def memorize_node(self: Agent, state: AgentState) -> AgentState:
         HumanMessage(content=f"<conversation>\n{last_message}\n</conversation>")
     ]
     
-    # TODO: 使用 Json 格式化输出, 并获取类型和重要性评分
+    # 格式化输出, 便于获取类型和重要性评分
+    structured_llm = self._llm.with_structured_output(Memories)
 
     # 使用特定温度获取记忆内容
-    response = await self._llm.with_config(tags=["summary"]).ainvoke(messages, temperature=1.0)
+    response = await structured_llm.with_config(tags=["memorize"]).ainvoke(messages, temperature=1.0)
 
-    content = response.content
-    type = "conversation"
-    importance = 1.0
-
-    self._memory.store_memory(
-        content=content,
-        type=type,
-        importance=importance
-    )
+    # 存储记忆内容
+    for item in response.items:
+        self._memory.store_memory(
+            content=item.content,
+            type=item.type,
+            importance=item.importance
+        )
+    
     return {}
 
 def recall_node(self: Agent, state: AgentState) -> AgentState:
