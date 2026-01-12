@@ -24,7 +24,7 @@ class MemoryItem(BaseModel):
     # emotion: Literal["none", "happy", "sad", "angry", ...] = Field(description="与内容相关的情感标签")
 
 class Memories(BaseModel):
-    items: list[MemoryItem] = Field(description="需要记忆的内容列表")
+    items: list[MemoryItem] = Field(description="需要记忆的内容列表，如果没有需要记忆的内容则返回空列表")
 
 
 # === 记忆节点 ===

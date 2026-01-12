@@ -83,9 +83,12 @@ class AgentMemory:
             id=f"mem_{int(timestamp * 1000)}_{i}"
         ) for i, (c, t, imp) in enumerate(zip(content, type, importance))]
 
-        logger.info(f"将 {len(docs)} 条记忆存储到向量数据库, 详情如下:\n{docs}")
+        if docs:
+            self._vector_db.add_documents(docs)
+            logger.info(f"将 {len(docs)} 条记忆存储到向量数据库, 详情如下:\n{docs}")
+        else:
+            logger.info("尝试存储的记忆内容列表为空, 操作已忽略")
 
-        self._vector_db.add_documents(docs)
 
     def retrieve_similar_memories(
         self,
