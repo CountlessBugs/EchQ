@@ -264,8 +264,8 @@ class NapcatListener:
                         self.on_message_callback(message)
         except json.JSONDecodeError:
             logger.error(f"Napcat 监听器消息解析失败: {message}")
-        except Exception as e:
-            logger.error(f"Napcat 监听器处理消息时发生错误: {e}")
+        # except Exception as e:
+        #     logger.error(f"Napcat 监听器处理消息时发生错误: {e}")
 
 
 # 全局Napcat客户端和监听器实例
