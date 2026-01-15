@@ -105,6 +105,7 @@ def initialize_components() -> None:
         llm_prompt=Config.LLM_PROMPT,
         token_limit=Config.AMEM_TOKEN_LIMIT,
         llm_model_provider=Config.LLM_MODEL_PROVIDER,
+        embedding_model=Config.EMBEDDING_MODEL,
         enable_vision=Config.LLM_ENABLE_VISION,
         tools=tools
     )

@@ -77,7 +77,7 @@ class Agent:
         workflow: Optional[CompiledStateGraph] = None,
         tools: Optional[list[BaseTool]] = None,
         llm_model_provider: str = "openai",
-        embeddings_model: str = "text-embedding-3-small",
+        embedding_model: str = "text-embedding-3-small",
         enable_vision: bool = False
     ) -> None:
         """初始化智能体
@@ -90,7 +90,7 @@ class Agent:
             workflow: 自定义工作流图, 如果为 None 则使用默认工作流
             tools: 智能体可用的工具列表
             llm_model_provider: LLM模型提供商名称
-            embeddings_model: 记忆组件使用的 Embedding 模型名称
+            embedding_model: 记忆组件使用的 Embedding 模型名称
             enable_vision: 是否启用视觉能力(图片输入)
         """
         self.llm_prompt = llm_prompt
@@ -115,7 +115,7 @@ class Agent:
 
         # 初始化记忆组件
         self._memory = AgentMemory(
-            embeddings_model=embeddings_model
+            embedding_model=embedding_model
         )
 
         # 构建图

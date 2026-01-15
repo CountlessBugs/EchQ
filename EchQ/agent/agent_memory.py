@@ -29,7 +29,7 @@ class AgentMemory:
 
     def __init__(
         self,
-        embeddings_model: str = "text-embedding-3-small",
+        embedding_model: str = "text-embedding-3-small",
         base_half_life: float = 7.0,
         strength_factor: float = 0.5,
         importance_curve: float = 0.3
@@ -39,7 +39,7 @@ class AgentMemory:
         Embedding 使用 OpenAIEmbeddings, OPENAI_API_KEY 需在环境变量中配置
         
         Args:
-            embeddings_model: 使用的 Embedding 模型名称
+            embedding_model: 使用的 Embedding 模型名称
 
             base_half_life: 记忆基础半衰期 (单位: 天), 默认 7.0
                 含义: 在该时间后, 未被回忆过的普通记忆 (importance=0) 的分数衰减至 50%
@@ -72,7 +72,7 @@ class AgentMemory:
                 - 0.8-0.9: 所有重要性级别较均衡
         """
         # 初始化 Embeddings
-        self._embeddings: OpenAIEmbeddings = OpenAIEmbeddings(model=embeddings_model)
+        self._embeddings: OpenAIEmbeddings = OpenAIEmbeddings(model=embedding_model)
 
         # 初始化向量数据库
         self._vector_db: Chroma = Chroma(
