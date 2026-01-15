@@ -78,7 +78,8 @@ class AgentMemory:
         self._vector_db: Chroma = Chroma(
             collection_name="episodic_memory",
             embedding_function=self._embeddings,
-            persist_directory=Paths.CHROMA_DB.as_posix()
+            persist_directory=Paths.CHROMA_DB.as_posix(),
+            collection_metadata={"hnsw:space": "ip"}
         )
 
         self.base_half_life: float = base_half_life
