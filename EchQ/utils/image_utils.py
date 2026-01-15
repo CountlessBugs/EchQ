@@ -56,13 +56,13 @@ class ImageUtils:
     ) -> str:
         """从 URL 下载并直接转为压缩后的 Base64
         
-        集成了流式下载, 大小检查, 格式转换和压缩
+        集成了流式下载, 大小检查, 格式转换和压缩功能. 格式为 JPEG / GIF.
 
         Args:
             url: 图片的远程 URL 地址
             max_mb: 图片的最大允许体积 (MB)
             max_size: 图片的最大边长, 超过则进行缩放
-            quality: JPEG 压缩质量 (1-100)
+            quality: 压缩质量 (1-100)
 
         Returns:
             Base64 编码的图片字符串, 失败则返回空字符串
@@ -101,12 +101,12 @@ class ImageUtils:
     
     @staticmethod
     def bytes_to_base64(image_bytes: bytes, max_size: int = 1024, quality: int = 85) -> str:
-        """将原始字节流压缩并转换为 Base64 字符串
+        """将原始字节流压缩并转换为 Base64 字符串.  格式为 JPEG / GIF.
         
         Args:
             image_bytes: 原始图片的字节流
             max_size: 图片的最大边长, 超过则进行缩放
-            quality: JPEG 压缩质量 (1-100)
+            quality: 压缩质量 (1-100)
 
         Returns:
             Base64 编码的图片字符串, 失败则返回空字符串
@@ -125,8 +125,13 @@ class ImageUtils:
                 
                 # 写入内存缓冲区
                 output_buffer = BytesIO()
-                # 统一导出为 JPEG, 因为 JPEG 在同等清晰度下 Base64 长度最短
-                img.save(output_buffer, format="JPEG", quality=quality, optimize=True)
+                
+                if original_format == "GIF":
+                    # GIF 保持原格式以支持动画
+                    img.save(output_buffer, format="GIF", optimize=True)
+                else:
+                    # 静态图片统一导出为 JPEG, 因为 JPEG 在同等清晰度下 Base64 长度最短
+                    img.save(output_buffer, format="JPEG", quality=quality, optimize=True)
                 
                 # 编码
                 encoded_str = base64.b64encode(output_buffer.getvalue()).decode('utf-8')
