@@ -98,7 +98,9 @@ def recall_node(self: Agent, state: AgentState) -> AgentState:
     )
 
     formatted_memories = [
-        f"[{DatetimeUtils.format_relative_time(m.metadata['timestamp'])}] {m.page_content}" 
+        f"[记忆产生于: {DatetimeUtils.format_relative_time(m.metadata['created_at'])}, "
+        f"最后回忆于: {DatetimeUtils.format_relative_time(m.metadata['last_accessed_at'])}] "
+        f"{m.page_content}"
         for m in retrieved_docs
     ]
 
