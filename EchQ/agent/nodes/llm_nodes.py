@@ -57,6 +57,9 @@ async def summarize_context_node(self: Agent, state: AgentState) -> AgentState:
     if self._llm is None:
         raise ValueError("LLM 未初始化，请先调用 initialize 方法")
 
+    # 清除已回忆记忆ID集合, 以便在新上下文中重新回忆
+    self._memory.clear_recalled_memory_ids()
+
     # 构建总结请求的消息
     history_text = "\n".join(
         f"{m.type}: {m.content}" for m in state["messages"] if m.type in ["human", "ai"]

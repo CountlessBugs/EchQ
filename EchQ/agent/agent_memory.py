@@ -85,6 +85,9 @@ class AgentMemory:
         self.strength_factor: float = strength_factor
         self.importance_curve: float = importance_curve
 
+        # 当前上下文中已回忆的记忆ID集合, 避免重复回忆
+        self._recalled_memory_ids: set[str] = set()
+
     # === 基本记忆存取方法 ===
 
     def store_memory(
@@ -141,7 +144,6 @@ class AgentMemory:
             logger.info(f"将 {len(docs)} 条记忆存储到向量数据库, 详情如下:\n{docs}")
         else:
             logger.info("尝试存储的记忆内容列表为空, 操作已忽略")
-
 
     def retrieve_similar_memories(
         self,
@@ -201,14 +203,16 @@ class AgentMemory:
         # 按新的检索分数重新降序排序
         scored_results.sort(key=lambda x: x[1], reverse=True)
         
-        # 应用阈值筛选并截断到 k 个
+        # 筛选记忆并截断到 k 个
         filtered_results = []
         for doc, score in scored_results:
-            if score < score_threshold:
-                break
-            filtered_results.append((doc, score))
-            if len(filtered_results) >= k:
-                break
+            if score >= score_threshold and doc.id not in self._recalled_memory_ids:
+                filtered_results.append((doc, score))
+                # 记录到已回忆集合
+                self._recalled_memory_ids.add(doc.id)
+
+                if len(filtered_results) >= k:
+                    break
 
         # 日志输出
         if filtered_results:
@@ -239,6 +243,13 @@ class AgentMemory:
             )
 
         return [doc for doc, _ in filtered_results]
+
+    # === 其他方法 ===
+
+    def clear_recalled_memory_ids(self) -> None:
+        """清除已回忆记忆ID集合, 以便在新上下文中重新回忆"""
+        self._recalled_memory_ids.clear()
+        logger.info("已清除已回忆记忆ID集合")
 
     # === 辅助方法 ===
 
