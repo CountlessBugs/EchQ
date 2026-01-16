@@ -129,15 +129,17 @@ class ImageUtils:
                 if original_format == "GIF":
                     # GIF 保持原格式以支持动画
                     img.save(output_buffer, format="GIF", optimize=True)
+                    prefix = "data:image/gif;base64,"
                 else:
                     # 静态图片统一导出为 JPEG, 因为 JPEG 在同等清晰度下 Base64 长度最短
                     img.save(output_buffer, format="JPEG", quality=quality, optimize=True)
+                    prefix = "data:image/jpeg;base64,"
                 
                 # 编码
                 encoded_str = base64.b64encode(output_buffer.getvalue()).decode('utf-8')
                 
                 logger.info(f"图片处理成功: 原始格式 {original_format}, 缩放至 {img.size}")
-                return f"data:image/jpeg;base64,{encoded_str}"
+                return prefix + encoded_str
                 
         except Exception as e:
             logger.error(f"图片处理失败: {e}")
