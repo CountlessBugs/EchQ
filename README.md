@@ -122,7 +122,9 @@ python app.py
 | `LLM_API_URL` | LLM API 地址 | `https://api.openai.com/v1` |
 | `LLM_API_KEY` | API 密钥 | - |
 | `LLM_MODEL` | 模型名称 | `gpt-4o` |
-| `LLM_TEMPERATURE` | 温度参数（控制随机性） | `1.3` |
+| `LLM_TEMPERATURE` | 温度参数 (控制随机性) | `1.3` |
+| `EMBEDDING_MODEL` | 向量嵌入模型名称 | `text-embedding-3-small` |
+| `LLM_ENABLE_VISION` | 是否启用视觉能力 (图片理解) | `False` |
 
 <!-- ### Agent 配置
 
@@ -148,7 +150,6 @@ python app.py
 |--------|------|--------|
 | `ENABLE_COMMANDS` | 是否启用 QQ 指令功能 | `True` |
 | `FILTER_WS_HEARTBEAT` | 是否过滤 WebSocket 心跳日志 | `True` |
-| `PRINT_WS_MESSAGES` | 是否打印 Websocket 消息 | `False` |
 
 ## 🏗️ 项目结构
 ```
